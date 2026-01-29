@@ -3,81 +3,81 @@ import google.generativeai as genai
 import pandas as pd
 import os
 
-# Forçamos a versão v1 para garantir o uso do faturamento Nível 1 (Foto 1a5c)
+# Forçamos a versão v1 para garantir o bônus Nível 1 (Foto 1a5c)
 os.environ["GOOGLE_API_VERSION"] = "v1"
 
-st.set_page_config(page_title="Raio-X 2.0", page_icon="🌿")
+st.set_page_config(page_title="Mentor IA - Raio-X 2.0", page_icon="🌿")
 
-# Configuração da API Key vinda dos Secrets
+# Configuração da IA vinda dos Secrets
 if "gemini" in st.secrets:
     genai.configure(api_key=st.secrets["gemini"]["api_key"])
 
 def carregar_dados():
     try:
-        # Puxa o link do formato export?format=csv (Foto 566f)
-        url_csv = st.secrets["connections"]["gsheets"]["spreadsheet"]
-        
-        # Ajuste de segurança: definimos o engine e ignoramos linhas com erro de formato
-        df = pd.read_csv(url_csv, on_bad_lines='skip', engine='python')
-        
-        # Limpamos espaços vazios nos nomes das colunas
+        url = st.secrets["connections"]["gsheets"]["spreadsheet"]
+        # O engine python com on_bad_lines evita o erro 400 em muitos casos
+        df = pd.read_csv(url, on_bad_lines='skip', engine='python')
         df.columns = [str(c).strip() for c in df.columns]
         return df
     except Exception as e:
-        st.error(f"Erro na conexão com os dados: {e}")
+        st.error(f"Erro de conexão: {e}")
         return pd.DataFrame()
 
-st.title("🌿 Diagnóstico Raio-X 2.0")
+st.title("🌿 Mentor IA - Método Livre da Vontade")
+st.write("---")
 
-# Sistema de Login simples
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
 
 if not st.session_state.logged_in:
-    e_input = st.text_input("Seu e-mail cadastrado:").strip().lower()
+    e_input = st.text_input("Digite seu e-mail cadastrado:").strip().lower()
     if st.button("Acessar Mapeamento"):
         if e_input:
             st.session_state.user_email = e_input
             st.session_state.logged_in = True
             st.rerun()
-        else:
-            st.warning("Por favor, digite seu e-mail.")
 else:
     df = carregar_dados()
     if not df.empty:
-        # Busca o aluno na planilha (Busca parcial para evitar erros de digitação)
         user_data = df[df.apply(lambda row: st.session_state.user_email in str(row.values).lower(), axis=1)]
         
         if not user_data.empty:
-            st.success(f"Dados localizados para: {st.session_state.user_email}")
+            st.success(f"Olá! Localizamos seus registros.")
             
-            # Mostra os últimos registros para o aluno confirmar
-            st.write("Seus últimos registros encontrados:")
-            st.dataframe(user_data.tail(5))
-            
-            if st.button("Gerar Análise com IA"):
+            if st.button("🚀 GERAR MEU RAIO-X DA LIBERDADE"):
                 try:
-                    # Modelo Gemini 1.5 Flash (Rápido e eficiente)
+                    # Usando o modelo 1.5 Flash do seu plano pago (Foto 1a5c)
                     model = genai.GenerativeModel('gemini-1.5-flash')
-                    
-                    with st.spinner('O Mentor está analisando seus gatilhos...'):
-                        # Enviamos os últimos 15 registros como contexto
+                    with st.spinner('O Mentor está analisando seus padrões...'):
                         contexto = user_data.tail(15).to_string()
-                        prompt = f"Como mentor do Método Livre da Vontade, analise estes gatilhos e dê uma orientação prática: \n\n{contexto}"
+                        
+                        # PROMPT MESTRE CONFIGURADO
+                        prompt = f"""
+                        Você é o Mentor Especialista do Método Livre da Vontade. 
+                        Sua missão é analisar os gatilhos de fumo deste aluno e fornecer um diagnóstico transformador.
+
+                        DADOS RECENTES DO ALUNO:
+                        {contexto}
+
+                        ESTRUTURA DA RESPOSTA:
+                        1. RESUMO DOS GATILHOS: Identifique os 3 momentos de maior risco.
+                        2. PADRÃO EMOCIONAL: O que está por trás do desejo (ansiedade, tédio, hábito)?
+                        3. PLANO DE AÇÃO: Dê uma instrução prática do Método Livre da Vontade para o próximo gatilho.
+                        
+                        Mantenha um tom profissional, acolhedor e focado na liberdade.
+                        """
                         
                         response = model.generate_content(prompt)
-                        st.markdown("---")
-                        st.subheader("💡 Orientação do Mentor:")
-                        st.write(response.text)
+                        st.markdown("### 💡 Diagnóstico do Mentor:")
+                        st.info(response.text)
                 except Exception as e:
-                    st.error(f"Erro ao processar análise. Verifique se o saldo está ativo. Detalhes: {e}")
+                    st.error(f"Falha na análise da IA: {e}")
         else:
-            st.error("E-mail não encontrado na base de dados.")
-            if st.button("Tentar outro e-mail"):
+            st.error("E-mail não encontrado na planilha de mapeamento.")
+            if st.button("Voltar"):
                 st.session_state.logged_in = False
                 st.rerun()
-    
-    # Botão de Sair na barra lateral
-    if st.sidebar.button("Sair / Trocar Conta"):
-        st.session_state.logged_in = False
-        st.rerun()
+
+if st.sidebar.button("Sair"):
+    st.session_state.logged_in = False
+    st.rerun()
