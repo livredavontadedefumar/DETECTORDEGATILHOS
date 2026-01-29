@@ -3,10 +3,10 @@ import google.generativeai as genai
 import pandas as pd
 import os
 
-# Forçamos a versão v1 para garantir o bônus Nível 1 (Foto 1a5c)
+# Força o uso da API v1 para usar seu bônus de R$ 1.904,08 (Foto 1a5c)
 os.environ["GOOGLE_API_VERSION"] = "v1"
 
-st.set_page_config(page_title="Mentor IA - Raio-X 2.0", page_icon="🌿")
+st.set_page_config(page_title="Mentor IA - Método Livre da Vontade", page_icon="🌿")
 
 # Configuração da IA vinda dos Secrets
 if "gemini" in st.secrets:
@@ -14,8 +14,9 @@ if "gemini" in st.secrets:
 
 def carregar_dados():
     try:
+        # Link do Secret (Foto a93b)
         url = st.secrets["connections"]["gsheets"]["spreadsheet"]
-        # O engine python com on_bad_lines evita o erro 400 em muitos casos
+        # Usamos engine='python' para evitar o Erro 400 em servidores do Streamlit
         df = pd.read_csv(url, on_bad_lines='skip', engine='python')
         df.columns = [str(c).strip() for c in df.columns]
         return df
@@ -24,13 +25,12 @@ def carregar_dados():
         return pd.DataFrame()
 
 st.title("🌿 Mentor IA - Método Livre da Vontade")
-st.write("---")
 
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
 
 if not st.session_state.logged_in:
-    e_input = st.text_input("Digite seu e-mail cadastrado:").strip().lower()
+    e_input = st.text_input("Seu e-mail cadastrado:").strip().lower()
     if st.button("Acessar Mapeamento"):
         if e_input:
             st.session_state.user_email = e_input
@@ -39,44 +39,42 @@ if not st.session_state.logged_in:
 else:
     df = carregar_dados()
     if not df.empty:
+        # Busca o aluno (Ajustado para ser mais flexível na busca)
         user_data = df[df.apply(lambda row: st.session_state.user_email in str(row.values).lower(), axis=1)]
         
         if not user_data.empty:
-            st.success(f"Olá! Localizamos seus registros.")
+            st.success(f"Registros localizados para {st.session_state.user_email}!")
+            # Mostra a tabela que você sentiu falta
+            st.dataframe(user_data.tail(10))
             
-            if st.button("🚀 GERAR MEU RAIO-X DA LIBERDADE"):
+            if st.button("🚀 GERAR DIAGNÓSTICO DO MENTOR"):
                 try:
-                    # Usando o modelo 1.5 Flash do seu plano pago (Foto 1a5c)
                     model = genai.GenerativeModel('gemini-1.5-flash')
-                    with st.spinner('O Mentor está analisando seus padrões...'):
+                    with st.spinner('O Mentor está analisando seu Raio-X...'):
                         contexto = user_data.tail(15).to_string()
                         
-                        # PROMPT MESTRE CONFIGURADO
-                        prompt = f"""
+                        # --- O PROMPT MESTRE QUE FALTAVA ---
+                        prompt_mestre = f"""
                         Você é o Mentor Especialista do Método Livre da Vontade. 
-                        Sua missão é analisar os gatilhos de fumo deste aluno e fornecer um diagnóstico transformador.
+                        Analise os gatilhos abaixo e forneça um diagnóstico de Nível 1.
 
-                        DADOS RECENTES DO ALUNO:
+                        DADOS DO ALUNO:
                         {contexto}
 
-                        ESTRUTURA DA RESPOSTA:
-                        1. RESUMO DOS GATILHOS: Identifique os 3 momentos de maior risco.
-                        2. PADRÃO EMOCIONAL: O que está por trás do desejo (ansiedade, tédio, hábito)?
-                        3. PLANO DE AÇÃO: Dê uma instrução prática do Método Livre da Vontade para o próximo gatilho.
-                        
-                        Mantenha um tom profissional, acolhedor e focado na liberdade.
+                        ESTRUTURA DO SEU DIAGNÓSTICO:
+                        1. PADRÃO IDENTIFICADO: Qual o maior erro emocional deste aluno?
+                        2. QUEBRA DE CICLO: Uma instrução prática para o próximo gatilho.
+                        3. MENSAGEM DO MENTOR: Uma frase curta de encorajamento firme.
                         """
                         
-                        response = model.generate_content(prompt)
-                        st.markdown("### 💡 Diagnóstico do Mentor:")
+                        response = model.generate_content(prompt_mestre)
+                        st.markdown("---")
+                        st.subheader("💡 Orientação do Mentor:")
                         st.info(response.text)
                 except Exception as e:
-                    st.error(f"Falha na análise da IA: {e}")
+                    st.error(f"IA indisponível. Verifique o faturamento: {e}")
         else:
-            st.error("E-mail não encontrado na planilha de mapeamento.")
-            if st.button("Voltar"):
-                st.session_state.logged_in = False
-                st.rerun()
+            st.error("E-mail não encontrado. Verifique sua planilha.")
 
 if st.sidebar.button("Sair"):
     st.session_state.logged_in = False
