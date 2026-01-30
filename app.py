@@ -3,11 +3,10 @@ import pandas as pd
 import gspread
 from google.oauth2.service_account import Credentials
 import requests
-import json
 
 st.set_page_config(page_title="Mentor IA", page_icon="🌿")
 
-# --- CONEXÃO COM A PLANILHA (Sempre funcionando conforme foto 3b31) ---
+# --- CONEXÃO COM A PLANILHA (Sua conexão está 100% - Foto 3b31) ---
 def conectar_planilha():
     try:
         scope = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
@@ -23,7 +22,6 @@ def conectar_planilha():
         st.error(f"Erro na Planilha: {e}")
         return pd.DataFrame()
 
-# --- INTERFACE ---
 st.title("🌿 Mentor IA - Método Livre da Vontade")
 
 if "logado" not in st.session_state:
@@ -40,41 +38,36 @@ else:
     if not df.empty:
         col_email = [c for c in df.columns if "email" in c.lower() or "e-mail" in c.lower()][0]
         user_data = df[df[col_email].str.strip().str.lower() == st.session_state.user_email]
-        st.success(f"Registros de {st.session_state.user_email}")
+        
+        st.success(f"Registros de {st.session_state.user_email} carregados.")
         st.dataframe(user_data.tail(10))
 
-        # --- BOTÃO DE DIAGNÓSTICO (Ajustado conforme diagnóstico da foto 97d1) ---
+        # --- BOTÃO DE DIAGNÓSTICO (CHAMADA COM A NOVA CHAVE) ---
         if st.button("🚀 GERAR DIAGNÓSTICO"):
             try:
+                # Puxa a nova chave que você vai colar nos Secrets
                 api_key = st.secrets["gemini"]["api_key"]
-                # URL ESTÁVEL v1
                 url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={api_key}"
                 
-                # Headers obrigatórios para evitar erro 400/404
-                headers = {'Content-Type': 'application/json'}
-                
-                contexto = user_data.tail(5).to_string()
-                # Payload 100% limpo conforme padrão Google AI
+                contexto = user_data.tail(10).to_string()
                 payload = {
                     "contents": [{
-                        "parts": [{
-                            "text": f"Analise como mentor: {contexto}"
-                        }]
+                        "parts": [{"text": f"Como Mentor, analise estes registros e dê um conselho curto: {contexto}"}]
                     }]
                 }
                 
-                with st.spinner('Analisando...'):
-                    response = requests.post(url, headers=headers, json=payload)
+                with st.spinner('O Mentor está analisando seu Raio-X...'):
+                    response = requests.post(url, headers={'Content-Type': 'application/json'}, json=payload)
                     
                     if response.status_code == 200:
                         resultado = response.json()
-                        texto = resultado['candidates'][0]['content']['parts'][0]['text']
-                        st.info(texto)
+                        texto_ia = resultado['candidates'][0]['content']['parts'][0]['text']
+                        st.markdown("---")
+                        st.info(texto_ia)
                     else:
-                        # Mostra o erro real que o Google está enviando (ajuda a matar o 100% de erro)
-                        st.error(f"Erro {response.status_code}: {response.text}")
+                        st.error(f"Erro {response.status_code}: Verifique a nova chave e o Billing no Google Cloud.")
             except Exception as e:
-                st.error(f"Falha técnica: {e}")
+                st.error(f"Erro técnico: {e}")
 
 if st.sidebar.button("Sair"):
     st.session_state.logado = False
