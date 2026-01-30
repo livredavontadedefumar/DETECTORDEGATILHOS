@@ -6,7 +6,7 @@ import requests
 
 st.set_page_config(page_title="Mentor IA", page_icon="🌿")
 
-# --- CONEXÃO COM A PLANILHA (Sua conexão está 100% - Foto 3b31) ---
+# --- CONEXÃO COM A PLANILHA (Confirmada na foto 3b31) ---
 def conectar_planilha():
     try:
         scope = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
@@ -22,6 +22,7 @@ def conectar_planilha():
         st.error(f"Erro na Planilha: {e}")
         return pd.DataFrame()
 
+# --- INTERFACE ---
 st.title("🌿 Mentor IA - Método Livre da Vontade")
 
 if "logado" not in st.session_state:
@@ -29,7 +30,7 @@ if "logado" not in st.session_state:
 
 if not st.session_state.logado:
     email_input = st.text_input("Seu e-mail:").strip().lower()
-    if st.button("Acessar"):
+    if st.button("Acessar Mapeamento"):
         st.session_state.user_email = email_input
         st.session_state.logado = True
         st.rerun()
@@ -42,21 +43,23 @@ else:
         st.success(f"Registros de {st.session_state.user_email} carregados.")
         st.dataframe(user_data.tail(10))
 
-        # --- BOTÃO DE DIAGNÓSTICO (CHAMADA COM A NOVA CHAVE) ---
+        # --- BOTÃO DE DIAGNÓSTICO (CHAMADA DIRETA v1) ---
         if st.button("🚀 GERAR DIAGNÓSTICO"):
             try:
-                # Puxa a nova chave que você vai colar nos Secrets
+                # Usa a sua API Key do bloco [gemini]
                 api_key = st.secrets["gemini"]["api_key"]
+                
+                # FORÇANDO A URL ESTÁVEL v1 (Isso evita o erro 404 da v1beta)
                 url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={api_key}"
                 
                 contexto = user_data.tail(10).to_string()
                 payload = {
                     "contents": [{
-                        "parts": [{"text": f"Como Mentor, analise estes registros e dê um conselho curto: {contexto}"}]
+                        "parts": [{"text": f"Como Mentor, analise estes registros e dê um diagnóstico curto: {contexto}"}]
                     }]
                 }
                 
-                with st.spinner('O Mentor está analisando seu Raio-X...'):
+                with st.spinner('O Mentor está analisando seu histórico...'):
                     response = requests.post(url, headers={'Content-Type': 'application/json'}, json=payload)
                     
                     if response.status_code == 200:
@@ -65,7 +68,7 @@ else:
                         st.markdown("---")
                         st.info(texto_ia)
                     else:
-                        st.error(f"Erro {response.status_code}: Verifique a nova chave e o Billing no Google Cloud.")
+                        st.error(f"Erro {response.status_code}: {response.text}")
             except Exception as e:
                 st.error(f"Erro técnico: {e}")
 
