@@ -4,52 +4,56 @@ import pandas as pd
 import gspread
 from google.oauth2.service_account import Credentials
 
-# 1. Configurações Iniciais
-st.set_page_config(page_title="Mentor IA - Método Livre da Vontade", page_icon="🌿")
-st.title("🌿 Mentor IA - Método Livre da Vontade")
+st.set_page_config(page_title="Mentor IA", page_icon="🌿")
 
-# 2. Conexão Simplificada
-def iniciar_conexao():
+def conectar():
     scope = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
+    # Usa o JSON que já está nos seus Secrets
     creds = Credentials.from_service_account_info(st.secrets["gcp_service_account"], scopes=scope)
     client = gspread.authorize(creds)
-    # Abra a NOVA planilha pelo nome para evitar erro de ID
-    return client.open("BANCO_MENTOR_IA").worksheet("DADOS")
+    # Abre a planilha pelo nome exato que você criou
+    return client.open("BANCO_MENTOR_IA").sheet1 # sheet1 pega a primeira aba automaticamente
 
-# 3. Lógica de Acesso
+st.title("🌿 Mentor IA - Método Livre da Vontade")
+
 if "logado" not in st.session_state:
     st.session_state.logado = False
 
 if not st.session_state.logado:
-    email_login = st.text_input("Digite seu e-mail:").strip().lower()
-    if st.button("Entrar"):
-        st.session_state.email = email_login
+    email = st.text_input("Digite seu e-mail:").strip().lower()
+    if st.button("Acessar"):
+        st.session_state.email = email
         st.session_state.logado = True
         st.rerun()
 else:
     try:
-        aba = iniciar_conexao()
-        dados_brutos = aba.get_all_records()
-        df = pd.DataFrame(dados_brutos)
+        aba = conectar()
+        # Pega todos os valores da planilha
+        dados = aba.get_all_values()
         
-        # Filtra os dados do aluno
-        user_df = df[df['Email'].str.lower() == st.session_state.email]
-        
-        if not user_df.empty:
-            st.success(f"Bem-vindo, {st.session_state.email}")
-            st.table(user_df.tail(5))
+        if len(dados) > 1:
+            df = pd.DataFrame(dados[1:], columns=dados[0])
+            # Filtra pelo e-mail do aluno
+            user_df = df[df.iloc[:, 1].str.lower() == st.session_state.email] # Assume que Email é a 2ª coluna
             
-            if st.button("🚀 Gerar Diagnóstico"):
-                genai.configure(api_key=st.secrets["gemini"]["api_key"])
-                model = genai.GenerativeModel('gemini-1.5-flash')
-                prompt = f"Analise o histórico de gatilhos e dê um conselho curto: {user_df.to_string()}"
-                res = model.generate_content(prompt)
-                st.info(res.text)
-        else:
-            st.warning("Nenhum dado encontrado para este e-mail.")
-            if st.button("Sair"):
-                st.session_state.logado = False
-                st.rerun()
+            if not user_df.empty:
+                st.success(f"Dados encontrados para {st.session_state.email}")
+                st.dataframe(user_df.tail(5))
                 
+                if st.button("🚀 Gerar Diagnóstico"):
+                    genai.configure(api_key=st.secrets["gemini"]["api_key"])
+                    model = genai.GenerativeModel('gemini-1.5-flash')
+                    prompt = f"Analise brevemente: {user_df.tail(3).to_string()}"
+                    res = model.generate_content(prompt)
+                    st.info(res.text)
+            else:
+                st.warning("E-mail não encontrado na planilha.")
+        else:
+            st.error("A planilha está vazia! Adicione pelo menos uma linha de dados abaixo dos cabeçalhos.")
+            
     except Exception as e:
-        st.error(f"Erro ao carregar dados: {e}")
+        st.error(f"Erro técnico: {e}")
+
+if st.sidebar.button("Sair"):
+    st.session_state.logado = False
+    st.rerun()
