@@ -7,7 +7,7 @@ import json
 
 st.set_page_config(page_title="Mentor IA", page_icon="🌿")
 
-# --- CONEXÃO COM A PLANILHA (Google Sheets) ---
+# --- CONEXÃO COM A PLANILHA (Sempre funcionando conforme foto 3b31) ---
 def conectar_planilha():
     try:
         scope = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
@@ -23,59 +23,58 @@ def conectar_planilha():
         st.error(f"Erro na Planilha: {e}")
         return pd.DataFrame()
 
-# --- INTERFACE PRINCIPAL ---
+# --- INTERFACE ---
 st.title("🌿 Mentor IA - Método Livre da Vontade")
 
 if "logado" not in st.session_state:
     st.session_state.logado = False
 
 if not st.session_state.logado:
-    email_input = st.text_input("Seu e-mail cadastrado:").strip().lower()
-    if st.button("Acessar Mapeamento"):
-        if email_input:
-            st.session_state.user_email = email_input
-            st.session_state.logado = True
-            st.rerun()
+    email_input = st.text_input("Seu e-mail:").strip().lower()
+    if st.button("Acessar"):
+        st.session_state.user_email = email_input
+        st.session_state.logado = True
+        st.rerun()
 else:
     df = conectar_planilha()
     if not df.empty:
-        # Busca a coluna de e-mail automaticamente (visto na foto 7c9c)
         col_email = [c for c in df.columns if "email" in c.lower() or "e-mail" in c.lower()][0]
         user_data = df[df[col_email].str.strip().str.lower() == st.session_state.user_email]
-        
-        st.success(f"Registros encontrados para {st.session_state.user_email}")
+        st.success(f"Registros de {st.session_state.user_email}")
         st.dataframe(user_data.tail(10))
 
-        # --- BOTÃO DE DIAGNÓSTICO (CHAMADA DIRETA VIA WEB) ---
+        # --- BOTÃO DE DIAGNÓSTICO (Ajustado conforme diagnóstico da foto 97d1) ---
         if st.button("🚀 GERAR DIAGNÓSTICO"):
             try:
                 api_key = st.secrets["gemini"]["api_key"]
-                # URL da versão estável v1 (Mata o erro 404 da v1beta)
+                # URL ESTÁVEL v1
                 url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={api_key}"
                 
-                contexto = user_data.tail(10).to_string()
+                # Headers obrigatórios para evitar erro 400/404
+                headers = {'Content-Type': 'application/json'}
+                
+                contexto = user_data.tail(5).to_string()
+                # Payload 100% limpo conforme padrão Google AI
                 payload = {
                     "contents": [{
                         "parts": [{
-                            "text": f"Você é o Mentor IA do Método Livre da Vontade. Analise estes gatilhos e dê um diagnóstico firme: {contexto}"
+                            "text": f"Analise como mentor: {contexto}"
                         }]
                     }]
                 }
                 
-                with st.spinner('O Mentor está analisando seu histórico...'):
-                    response = requests.post(url, json=payload)
-                    resultado = response.json()
+                with st.spinner('Analisando...'):
+                    response = requests.post(url, headers=headers, json=payload)
                     
                     if response.status_code == 200:
-                        texto_ia = resultado['candidates'][0]['content']['parts'][0]['text']
-                        st.markdown("---")
-                        st.markdown("### 🌿 Diagnóstico do Mentor")
-                        st.info(texto_ia)
+                        resultado = response.json()
+                        texto = resultado['candidates'][0]['content']['parts'][0]['text']
+                        st.info(texto)
                     else:
-                        st.error(f"Erro na API ({response.status_code}): {resultado.get('error', {}).get('message', 'Erro técnico')}")
-                        
+                        # Mostra o erro real que o Google está enviando (ajuda a matar o 100% de erro)
+                        st.error(f"Erro {response.status_code}: {response.text}")
             except Exception as e:
-                st.error(f"Erro técnico: {e}")
+                st.error(f"Falha técnica: {e}")
 
 if st.sidebar.button("Sair"):
     st.session_state.logado = False
