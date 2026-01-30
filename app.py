@@ -2,7 +2,8 @@ import streamlit as st
 import pandas as pd
 import gspread
 from google.oauth2.service_account import Credentials
-import google.generativeai as genai
+import requests
+import json
 
 st.set_page_config(page_title="Mentor IA", page_icon="🌿")
 
@@ -44,37 +45,36 @@ else:
         st.success(f"Conectado: {st.session_state.user_email}")
         st.dataframe(user_data.tail(10))
 
-        # --- BOTÃO DE DIAGNÓSTICO (VERSÃO SIMPLIFICADA SEM ERROS) ---
+        # --- BOTÃO DE DIAGNÓSTICO (CHAMADA DIRETA VIA URL - SEM ERRO 404) ---
         if st.button("🚀 GERAR DIAGNÓSTICO"):
             try:
-                # 1. Configura a chave de forma direta
-                genai.configure(api_key=st.secrets["gemini"]["api_key"])
+                api_key = st.secrets["gemini"]["api_key"]
+                # Forçamos a URL da versão 1 (Estável)
+                url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={api_key}"
                 
-                # 2. Define o modelo (usando a forma mais compatível possível)
-                model = genai.GenerativeModel('gemini-1.5-flash')
+                contexto = user_data.tail(10).to_string()
+                payload = {
+                    "contents": [{
+                        "parts": [{
+                            "text": f"Você é o Mentor IA. Analise estes gatilhos e dê um conselho firme: {contexto}"
+                        }]
+                    }]
+                }
                 
-                with st.spinner('O Mentor IA está analisando seus dados...'):
-                    # Pega os dados que já aparecem na sua tela
-                    contexto = user_data.tail(10).to_string()
+                with st.spinner('O Mentor está analisando seu Raio-X...'):
+                    response = requests.post(url, json=payload)
+                    resultado = response.json()
                     
-                    prompt = f"""
-                    Você é o Mentor do Método Livre da Vontade.
-                    Analise os seguintes registros de gatilhos:
-                    {contexto}
-                    
-                    Dê um diagnóstico curto e uma orientação prática.
-                    """
-                    
-                    # 3. Gera o conteúdo
-                    response = model.generate_content(prompt)
-                    
-                    st.markdown("---")
-                    st.markdown("### 🌿 Diagnóstico do Mentor")
-                    st.info(response.text)
-                    
+                    if response.status_code == 200:
+                        texto_ia = resultado['candidates'][0]['content']['parts'][0]['text']
+                        st.markdown("---")
+                        st.markdown("### 🌿 Diagnóstico do Mentor")
+                        st.info(texto_ia)
+                    else:
+                        st.error(f"Erro na API ({response.status_code}): {resultado.get('error', {}).get('message', 'Erro desconhecido')}")
+                        
             except Exception as e:
-                st.error(f"Erro na IA: {e}")
-                st.info("Verifique se sua API Key está ativa no Google AI Studio.")
+                st.error(f"Erro técnico: {e}")
 
 if st.sidebar.button("Sair"):
     st.session_state.logado = False
