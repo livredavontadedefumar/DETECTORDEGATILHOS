@@ -1,28 +1,29 @@
 import streamlit as st
 import gspread
+import pandas as pd
 from google.oauth2.service_account import Credentials
 
-st.title("🧪 Teste de Diagnóstico de Erro")
+st.title("🧪 Teste de Conexão Direta")
 
 try:
-    # Teste 1: Conexão com Google Sheets
-    st.write("Tentando conectar ao Google Sheets...")
     scope = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
     creds_dict = st.secrets["gcp_service_account"]
     credentials = Credentials.from_service_account_info(creds_dict, scopes=scope)
     client = gspread.authorize(credentials)
     
-    # ID da planilha (verifique se é este mesmo!)
-    sh = client.open_by_key("16EeafLByraXRhOh6FRhOiHTnUQCja8YEfBDlgUGH_yT8")
-    worksheet = sh.get_worksheet(0)
-    st.success("✅ Conexão com Planilha OK!")
+    # Abrindo pelo ID da planilha (Foto 2e34)
+    spreadsheet_id = "16EeafLByraXRhOh6FRhOiHTnUQCja8YEfBDlgUGH_yT8"
+    sh = client.open_by_key(spreadsheet_id)
     
-    # Teste 2: Leitura de dados
+    # EM VEZ DE get_worksheet(0), VAMOS PELO NOME EXATO QUE ESTÁ NA FOTO 2e34
+    # Se o nome no rodapé da planilha for diferente de 'MAPEAMENTO (respostas)', 
+    # mude o texto abaixo para o nome que aparece na aba lá no Google Sheets.
+    worksheet = sh.worksheet("MAPEAMENTO (respostas)")
+    
     dados = worksheet.get_all_values()
-    st.write(f"Linhas encontradas: {len(dados)}")
-    st.success("✅ Leitura de Dados OK!")
+    st.success(f"✅ CONECTADO! Encontramos {len(dados)} linhas de dados.")
+    st.dataframe(pd.DataFrame(dados[1:], columns=dados[0]))
 
 except Exception as e:
-    st.error(f"❌ O ERRO ESTÁ AQUI: {e}")
-
-st.info("Se o erro acima for 400, o problema é o ID da planilha ou permissão no Cloud.")
+    st.error(f"❌ Erro detectado: {e}")
+    st.info("Dica: Verifique se o nome da aba no rodapé da planilha é exatamente 'MAPEAMENTO (respostas)'.")
