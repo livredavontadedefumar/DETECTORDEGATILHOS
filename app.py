@@ -3,10 +3,11 @@ import pandas as pd
 import gspread
 from google.oauth2.service_account import Credentials
 import requests
+import json
 
 st.set_page_config(page_title="Mentor IA", page_icon="🌿")
 
-# --- CONEXÃO COM A PLANILHA (Confirmada na foto 3b31) ---
+# --- CONEXÃO COM A PLANILHA (Funcionando 100% - Foto 3b31) ---
 def conectar_planilha():
     try:
         scope = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
@@ -40,35 +41,39 @@ else:
         col_email = [c for c in df.columns if "email" in c.lower() or "e-mail" in c.lower()][0]
         user_data = df[df[col_email].str.strip().str.lower() == st.session_state.user_email]
         
-        st.success(f"Registros de {st.session_state.user_email} carregados.")
+        st.success(f"Conectado: {st.session_state.user_email}")
         st.dataframe(user_data.tail(10))
 
-        # --- BOTÃO DE DIAGNÓSTICO (CHAMADA DIRETA v1) ---
+        # --- BOTÃO DE DIAGNÓSTICO (Ajustado para Gemini-1.0-Pro) ---
         if st.button("🚀 GERAR DIAGNÓSTICO"):
             try:
-                # Usa a sua API Key do bloco [gemini]
-                api_key = st.secrets["gemini"]["api_key"]
+                api_key = st.secrets["gemini"]["AIzaSyA4gEspXHyp-cLmaX36CDu54NPXqP6hjFU"]
                 
-                # FORÇANDO A URL ESTÁVEL v1 (Isso evita o erro 404 da v1beta)
-                url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={api_key}"
+                # URL CORRETA SUGERIDA (v1 + gemini-1.0-pro)
+                url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.0-pro:generateContent?key={api_key}"
                 
                 contexto = user_data.tail(10).to_string()
                 payload = {
                     "contents": [{
-                        "parts": [{"text": f"Como Mentor, analise estes registros e dê um diagnóstico curto: {contexto}"}]
+                        "parts": [{"text": f"Você é o Mentor IA. Analise estes registros e dê um conselho curto e firme: {contexto}"}]
                     }]
                 }
                 
-                with st.spinner('O Mentor está analisando seu histórico...'):
-                    response = requests.post(url, headers={'Content-Type': 'application/json'}, json=payload)
+                headers = {'Content-Type': 'application/json'}
+                
+                with st.spinner('O Mentor está analisando seu Raio-X...'):
+                    response = requests.post(url, headers=headers, json=payload)
+                    resultado = response.json()
                     
                     if response.status_code == 200:
-                        resultado = response.json()
+                        # Extrai o texto da resposta conforme o formato do Google AI
                         texto_ia = resultado['candidates'][0]['content']['parts'][0]['text']
                         st.markdown("---")
+                        st.markdown("### 🌿 Diagnóstico do Mentor")
                         st.info(texto_ia)
                     else:
-                        st.error(f"Erro {response.status_code}: {response.text}")
+                        st.error(f"Erro {response.status_code}: {resultado.get('error', {}).get('message', 'Erro técnico')}")
+                        
             except Exception as e:
                 st.error(f"Erro técnico: {e}")
 
