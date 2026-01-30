@@ -4,6 +4,7 @@ import pandas as pd
 import gspread
 from google.oauth2.service_account import Credentials
 
+# 1. Configurações de Página
 st.set_page_config(page_title="Mentor IA - Método Livre da Vontade", page_icon="🌿")
 
 def conectar_planilha():
@@ -13,7 +14,7 @@ def conectar_planilha():
         credentials = Credentials.from_service_account_info(creds_dict, scopes=scope)
         client = gspread.authorize(credentials)
         
-        # Abre a planilha pelo nome exato da Foto 7c9c
+        # Abre a planilha pelo nome exato (conforme sua foto 7c9c)
         sh = client.open("BANCO-MENTOR-IA")
         worksheet = sh.worksheet("DADOS")
         
@@ -21,21 +22,22 @@ def conectar_planilha():
         if len(dados) < 2:
             return pd.DataFrame()
             
-        # Limpa espaços extras nos cabeçalhos para evitar o AttributeError
+        # Limpa espaços invisíveis nos cabeçalhos (evita o erro da foto a09a)
         headers = [str(h).strip() for h in dados[0]]
         df = pd.DataFrame(dados[1:], columns=headers)
         return df
     except Exception as e:
-        st.error(f"Erro de conexão: {e}")
+        st.error(f"Erro ao conectar na planilha: {e}")
         return pd.DataFrame()
 
+# 2. Interface Principal
 st.title("🌿 Mentor IA - Método Livre da Vontade")
 
 if "logado" not in st.session_state:
     st.session_state.logado = False
 
 if not st.session_state.logado:
-    email_input = st.text_input("Digite seu e-mail:").strip().lower()
+    email_input = st.text_input("Digite seu e-mail cadastrado:").strip().lower()
     if st.button("Acessar Mapeamento"):
         if email_input:
             st.session_state.user_email = email_input
@@ -45,38 +47,59 @@ else:
     df = conectar_planilha()
     
     if not df.empty:
-        # BUSCA AUTOMÁTICA DA COLUNA DE E-MAIL
-        # Procura qualquer coluna que tenha "e-mail" ou "email" no nome
-        colunas_possiveis = [c for c in df.columns if "email" in c.lower() or "e-mail" in c.lower()]
+        # Busca automática da coluna de e-mail (flexível para variações de nome)
+        colunas_email = [c for c in df.columns if "email" in c.lower() or "e-mail" in c.lower()]
         
-        if colunas_possiveis:
-            coluna_certa = colunas_possiveis[0]
-            # Filtra os dados comparando apenas o texto limpo
+        if colunas_email:
+            coluna_certa = colunas_email[0]
+            # Filtra os registros do usuário atual
             user_data = df[df[coluna_certa].str.strip().str.lower() == st.session_state.user_email]
             
             if not user_data.empty:
-                st.success(f"Olá! Registros encontrados.")
+                st.success(f"Olá! Registros encontrados para {st.session_state.user_email}")
                 st.dataframe(user_data.tail(10))
                 
+                # --- BOTÃO DE DIAGNÓSTICO COM CORREÇÃO DO ERRO 404 ---
                 if st.button("🚀 GERAR DIAGNÓSTICO"):
                     try:
+                        # Configura a API Key do Gemini (Nível 1)
                         genai.configure(api_key=st.secrets["gemini"]["api_key"])
+                        
+                        # Chama o modelo 1.5-flash de forma estável
                         model = genai.GenerativeModel('gemini-1.5-flash')
-                        with st.spinner('Analisando seu Raio-X...'):
-                            contexto = user_data.tail(5).to_string()
-                            prompt = f"Você é o Mentor. Analise estes dados e dê um conselho curto: {contexto}"
+                        
+                        with st.spinner('O Mentor IA está analisando seu Raio-X...'):
+                            # Envia os últimos 10 registros para uma análise mais rica
+                            contexto = user_data.tail(10).to_string()
+                            
+                            prompt = f"""
+                            Você é o Mentor IA do Método Livre da Vontade.
+                            Com base nestes registros de gatilhos do aluno:
+                            {contexto}
+                            
+                            Dê um diagnóstico direto, firme e encorajador.
+                            Identifique padrões de comportamento e sugira uma ação prática baseada no método.
+                            """
+                            
                             response = model.generate_content(prompt)
+                            st.markdown("---")
+                            st.markdown("### 🌿 Diagnóstico do Mentor")
                             st.info(response.text)
+                            
                     except Exception as e:
-                        st.error(f"Erro na IA: {e}")
+                        # Se der erro 404 aqui, verifique a API Key nos Secrets
+                        st.error(f"Erro ao gerar diagnóstico (IA): {e}")
             else:
-                st.warning(f"Nenhum dado encontrado para: {st.session_state.user_email}")
+                st.warning(f"Nenhum registro encontrado para: {st.session_state.user_email}")
                 if st.button("Tentar outro e-mail"):
                     st.session_state.logado = False
                     st.rerun()
         else:
-            st.error("Não encontramos a coluna de e-mail na planilha. Verifique o cabeçalho.")
+            st.error("A coluna de e-mail não foi detectada na planilha.")
+    else:
+        st.info("Aguardando dados da planilha...")
 
-if st.sidebar.button("Sair"):
+# Botão para sair no menu lateral
+if st.sidebar.button("Sair / Trocar de Conta"):
     st.session_state.logado = False
     st.rerun()
