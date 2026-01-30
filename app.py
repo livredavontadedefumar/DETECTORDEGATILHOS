@@ -7,7 +7,7 @@ import json
 
 st.set_page_config(page_title="Mentor IA", page_icon="🌿")
 
-# --- CONEXÃO COM A PLANILHA ---
+# --- CONEXÃO COM A PLANILHA (Google Sheets) ---
 def conectar_planilha():
     try:
         scope = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
@@ -23,15 +23,15 @@ def conectar_planilha():
         st.error(f"Erro na Planilha: {e}")
         return pd.DataFrame()
 
-# --- INTERFACE ---
+# --- INTERFACE PRINCIPAL ---
 st.title("🌿 Mentor IA - Método Livre da Vontade")
 
 if "logado" not in st.session_state:
     st.session_state.logado = False
 
 if not st.session_state.logado:
-    email_input = st.text_input("Seu e-mail:").strip().lower()
-    if st.button("Acessar"):
+    email_input = st.text_input("Seu e-mail cadastrado:").strip().lower()
+    if st.button("Acessar Mapeamento"):
         if email_input:
             st.session_state.user_email = email_input
             st.session_state.logado = True
@@ -39,29 +39,30 @@ if not st.session_state.logado:
 else:
     df = conectar_planilha()
     if not df.empty:
+        # Busca a coluna de e-mail automaticamente (visto na foto 7c9c)
         col_email = [c for c in df.columns if "email" in c.lower() or "e-mail" in c.lower()][0]
         user_data = df[df[col_email].str.strip().str.lower() == st.session_state.user_email]
         
-        st.success(f"Conectado: {st.session_state.user_email}")
+        st.success(f"Registros encontrados para {st.session_state.user_email}")
         st.dataframe(user_data.tail(10))
 
-        # --- BOTÃO DE DIAGNÓSTICO (CHAMADA DIRETA VIA URL - SEM ERRO 404) ---
+        # --- BOTÃO DE DIAGNÓSTICO (CHAMADA DIRETA VIA WEB) ---
         if st.button("🚀 GERAR DIAGNÓSTICO"):
             try:
                 api_key = st.secrets["gemini"]["api_key"]
-                # Forçamos a URL da versão 1 (Estável)
+                # URL da versão estável v1 (Mata o erro 404 da v1beta)
                 url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={api_key}"
                 
                 contexto = user_data.tail(10).to_string()
                 payload = {
                     "contents": [{
                         "parts": [{
-                            "text": f"Você é o Mentor IA. Analise estes gatilhos e dê um conselho firme: {contexto}"
+                            "text": f"Você é o Mentor IA do Método Livre da Vontade. Analise estes gatilhos e dê um diagnóstico firme: {contexto}"
                         }]
                     }]
                 }
                 
-                with st.spinner('O Mentor está analisando seu Raio-X...'):
+                with st.spinner('O Mentor está analisando seu histórico...'):
                     response = requests.post(url, json=payload)
                     resultado = response.json()
                     
@@ -71,7 +72,7 @@ else:
                         st.markdown("### 🌿 Diagnóstico do Mentor")
                         st.info(texto_ia)
                     else:
-                        st.error(f"Erro na API ({response.status_code}): {resultado.get('error', {}).get('message', 'Erro desconhecido')}")
+                        st.error(f"Erro na API ({response.status_code}): {resultado.get('error', {}).get('message', 'Erro técnico')}")
                         
             except Exception as e:
                 st.error(f"Erro técnico: {e}")
