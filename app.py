@@ -68,7 +68,7 @@ else:
             # --- 3. CHAMADA DA IA (AJUSTADA E CORRIGIDA) ---
             if st.button("🚀 GERAR DIAGNÓSTICO DO MENTOR"):
                 try:
-                    # Puxa a chave AIzaSyDffDDDizG1UtX_UqvlTVv1Tp7ezR1qia8 dos Secrets
+                    # Puxa a chave AIza....qia8 dos Secrets
                     api_key = st.secrets["gemini"]["api_key"]
                     
                     # URL CORRIGIDA: Adicionado o '=' e rota v1beta estável
