@@ -11,17 +11,11 @@ st.set_page_config(page_title="Mentor IA", page_icon="🌿", layout="centered")
 # --- 1. FUNÇÃO DE CONEXÃO COM A PLANILHA ---
 def conectar_planilha():
     try:
-        # Escopo de permissão
         scope = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
-        
-        # Puxa o bloco JSON da Conta de Serviço dos Secrets
-        # No Streamlit Secrets deve estar como [gcp_service_account]
         creds_dict = st.secrets["gcp_service_account"]
-        
         credentials = Credentials.from_service_account_info(creds_dict, scopes=scope)
         client = gspread.authorize(credentials)
         
-        # Abre a planilha pelo nome (Certifique-se que o e-mail da conta de serviço está como editor nela)
         sh = client.open("BANCO-MENTOR-IA")
         worksheet = sh.worksheet("DADOS")
         
@@ -52,13 +46,10 @@ if not st.session_state.logado:
             st.rerun()
         else:
             st.warning("Por favor, insira um e-mail válido.")
-
 else:
-    # Fluxo principal após login
     df = conectar_planilha()
     
     if not df.empty:
-        # Busca segura pela coluna de e-mail (evita erro de coluna inexistente)
         colunas_email = [c for c in df.columns if "email" in c.lower() or "e-mail" in c.lower()]
         
         if not colunas_email:
@@ -66,8 +57,6 @@ else:
             st.stop()
             
         col_email = colunas_email[0]
-        
-        # Filtra os dados do usuário
         user_data = df[df[col_email].str.strip().str.lower() == st.session_state.user_email]
         
         if user_data.empty:
@@ -76,16 +65,15 @@ else:
             st.success(f"Olá! Exibindo seus últimos registros.")
             st.dataframe(user_data.tail(10))
 
-            # --- 3. CHAMADA CIRÚRGICA DA IA (Gemini 1.0 Pro) ---
+            # --- 3. CHAMADA DA IA (AJUSTADA E CORRIGIDA) ---
             if st.button("🚀 GERAR DIAGNÓSTICO DO MENTOR"):
                 try:
-                    # AIzaSyDffDDDizG1UtX_UqvlTVv1Tp7ezR1qia8 [gemini][api_key]
+                    # Puxa a chave AIzaSy...qia8 dos Secrets
                     api_key = st.secrets["gemini"]["api_key"]
                     
-                    # Endpoint v1 estável com modelo 1.5-flash-latest (Mata o erro 404)
-                    base_url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key{api_key}"
+                    # URL CORRIGIDA: Adicionado o '=' e rota v1beta estável
+                    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
                     
-                    # Prepara os dados para análise
                     contexto = user_data.tail(10).to_string()
                     
                     payload = {
@@ -99,9 +87,8 @@ else:
                     headers = {"Content-Type": "application/json"}
                     
                     with st.spinner('O Mentor está processando seus dados...'):
-                        # Chamada com timeout de 30 segundos para estabilidade
                         response = requests.post(
-                            f"{base_url}?key={api_key}",
+                            url,
                             headers=headers,
                             json=payload,
                             timeout=30
@@ -110,20 +97,17 @@ else:
                         resultado = response.json()
                         
                         if response.status_code == 200:
-                            # Sucesso: Extrai e exibe a resposta
                             texto_ia = resultado['candidates'][0]['content']['parts'][0]['text']
                             st.markdown("---")
                             st.markdown("### 🌿 Resposta do Mentor")
                             st.info(texto_ia)
                         else:
-                            # Diagnóstico detalhado em caso de erro (Billing, Cota ou Chave)
-                            msg_erro = resultado.get('error', {}).get('message', 'Erro desconhecido no Google Cloud')
+                            msg_erro = resultado.get('error', {}).get('message', 'Erro desconhecido')
                             st.error(f"Erro {response.status_code} na API: {msg_erro}")
                             
                 except Exception as e:
                     st.error(f"Ocorreu uma falha técnica na comunicação: {e}")
 
-    # Botão para trocar de usuário
     if st.sidebar.button("Sair / Trocar E-mail"):
         st.session_state.logado = False
         st.rerun()
