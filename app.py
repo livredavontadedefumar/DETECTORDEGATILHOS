@@ -79,11 +79,11 @@ else:
             # --- 3. CHAMADA CIRÚRGICA DA IA (Gemini 1.0 Pro) ---
             if st.button("🚀 GERAR DIAGNÓSTICO DO MENTOR"):
                 try:
-                    # Puxa a API Key nível 1 do bloco [gemini][api_key]
+                    # AIzaSyDffDDDizG1UtX_UqvlTVv1Tp7ezR1qia8 [gemini][api_key]
                     api_key = st.secrets["gemini"]["api_key"]
                     
-                    # Endpoint v1 estável com modelo 1.0-pro (Mata o erro 404)
-                    base_url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent"
+                    # Endpoint v1 estável com modelo 1.5-flash-latest (Mata o erro 404)
+                    base_url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key{api_key}"
                     
                     # Prepara os dados para análise
                     contexto = user_data.tail(10).to_string()
