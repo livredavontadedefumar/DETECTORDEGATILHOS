@@ -83,29 +83,24 @@ else:
                     api_key = st.secrets["gemini"]["api_key"]
                     
                     # Endpoint v1 estável com modelo 1.0-pro (Mata o erro 404)
-                    base_url = "https://generativelanguage.googleapis.com/v1/models/gemini-1.0-pro:generateContent"
-                    
-                    # Prepara os dados para análise
-                    contexto = user_data.tail(10).to_string()
-                    
-                    payload = {
-                        "contents": [{
-                            "parts": [{
-                                "text": f"Você é o Mentor IA do Método Livre da Vontade. Analise os gatilhos abaixo e forneça um diagnóstico firme, prático e motivador:\n\n{contexto}"
-                            }]
-                        }]
-                    }
-                    
-                    headers = {"Content-Type": "application/json"}
-                    
-                    with st.spinner('O Mentor está processando seus dados...'):
-                        # Chamada com timeout de 30 segundos para estabilidade
-                        response = requests.post(
-                            f"{base_url}?key={api_key}",
-                            headers=headers,
-                            json=payload,
-                            timeout=30
-                        )
+                    base_url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent"
+
+payload = {
+    "contents": [{
+        "parts": [{
+            "text": f"Você é o Mentor IA. Analise estes gatilhos e dê um diagnóstico firme:\n{contexto}"
+        }]
+    }]
+}
+
+headers = {"Content-Type": "application/json"}
+
+response = requests.post(
+    f"{url}?key={api_key}",
+    headers=headers,
+    json=payload,
+    timeout=30
+)
                         
                         resultado = response.json()
                         
