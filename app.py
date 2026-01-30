@@ -18,11 +18,12 @@ def conectar_planilha():
         worksheet = sh.worksheet("DADOS")
         
         dados = worksheet.get_all_values()
-        if not dados:
+        if len(dados) < 2:
             return pd.DataFrame()
             
-        # Cria o DataFrame usando a primeira linha como cabeçalho
-        df = pd.DataFrame(dados[1:], columns=dados[0])
+        # Limpa espaços extras nos cabeçalhos para evitar o AttributeError
+        headers = [str(h).strip() for h in dados[0]]
+        df = pd.DataFrame(dados[1:], columns=headers)
         return df
     except Exception as e:
         st.error(f"Erro de conexão: {e}")
@@ -34,7 +35,7 @@ if "logado" not in st.session_state:
     st.session_state.logado = False
 
 if not st.session_state.logado:
-    email_input = st.text_input("Digite seu e-mail cadastrado:").strip().lower()
+    email_input = st.text_input("Digite seu e-mail:").strip().lower()
     if st.button("Acessar Mapeamento"):
         if email_input:
             st.session_state.user_email = email_input
@@ -44,14 +45,17 @@ else:
     df = conectar_planilha()
     
     if not df.empty:
-        # Ajuste para o nome exato da coluna na Foto 7c9c: "Endereço de e-mail"
-        coluna_email = "Endereço de e-mail"
+        # BUSCA AUTOMÁTICA DA COLUNA DE E-MAIL
+        # Procura qualquer coluna que tenha "e-mail" ou "email" no nome
+        colunas_possiveis = [c for c in df.columns if "email" in c.lower() or "e-mail" in c.lower()]
         
-        if coluna_email in df.columns:
-            user_data = df[df[coluna_email].str.lower() == st.session_state.user_email]
+        if colunas_possiveis:
+            coluna_certa = colunas_possiveis[0]
+            # Filtra os dados comparando apenas o texto limpo
+            user_data = df[df[coluna_certa].str.strip().str.lower() == st.session_state.user_email]
             
             if not user_data.empty:
-                st.success(f"Olá! Registros encontrados para {st.session_state.user_email}")
+                st.success(f"Olá! Registros encontrados.")
                 st.dataframe(user_data.tail(10))
                 
                 if st.button("🚀 GERAR DIAGNÓSTICO"):
@@ -60,15 +64,18 @@ else:
                         model = genai.GenerativeModel('gemini-1.5-flash')
                         with st.spinner('Analisando seu Raio-X...'):
                             contexto = user_data.tail(5).to_string()
-                            prompt = f"Você é o Mentor do Método Livre da Vontade. Analise estes dados de gatilhos e dê um conselho firme e prático: {contexto}"
+                            prompt = f"Você é o Mentor. Analise estes dados e dê um conselho curto: {contexto}"
                             response = model.generate_content(prompt)
                             st.info(response.text)
                     except Exception as e:
                         st.error(f"Erro na IA: {e}")
             else:
-                st.warning(f"Nenhum dado encontrado para o e-mail: {st.session_state.user_email}")
+                st.warning(f"Nenhum dado encontrado para: {st.session_state.user_email}")
+                if st.button("Tentar outro e-mail"):
+                    st.session_state.logado = False
+                    st.rerun()
         else:
-            st.error(f"Coluna '{coluna_email}' não encontrada. Verifique os cabeçalhos da planilha.")
+            st.error("Não encontramos a coluna de e-mail na planilha. Verifique o cabeçalho.")
 
 if st.sidebar.button("Sair"):
     st.session_state.logado = False
