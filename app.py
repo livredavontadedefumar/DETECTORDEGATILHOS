@@ -4,17 +4,18 @@ import pandas as pd
 import gspread
 from google.oauth2.service_account import Credentials
 
-# 1. Configurações de Página
+# 1. Configurações Iniciais do Aplicativo
 st.set_page_config(page_title="Mentor IA - Método Livre da Vontade", page_icon="🌿")
 
 def conectar_planilha():
     try:
         scope = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
+        # Usa as credenciais da conta de serviço salvas nos Secrets
         creds_dict = st.secrets["gcp_service_account"]
         credentials = Credentials.from_service_account_info(creds_dict, scopes=scope)
         client = gspread.authorize(credentials)
         
-        # Abre a planilha pelo nome exato (conforme sua foto 7c9c)
+        # Abre a planilha pelo nome exato conforme Foto 7c9c
         sh = client.open("BANCO-MENTOR-IA")
         worksheet = sh.worksheet("DADOS")
         
@@ -22,7 +23,7 @@ def conectar_planilha():
         if len(dados) < 2:
             return pd.DataFrame()
             
-        # Limpa espaços invisíveis nos cabeçalhos (evita o erro da foto a09a)
+        # Limpa os cabeçalhos para evitar erros de nomes de colunas
         headers = [str(h).strip() for h in dados[0]]
         df = pd.DataFrame(dados[1:], columns=headers)
         return df
@@ -30,7 +31,7 @@ def conectar_planilha():
         st.error(f"Erro ao conectar na planilha: {e}")
         return pd.DataFrame()
 
-# 2. Interface Principal
+# 2. Interface do Mentor IA
 st.title("🌿 Mentor IA - Método Livre da Vontade")
 
 if "logado" not in st.session_state:
@@ -52,7 +53,7 @@ else:
         
         if colunas_email:
             coluna_certa = colunas_email[0]
-            # Filtra os registros do usuário atual
+            # Filtra os dados do aluno logado
             user_data = df[df[coluna_certa].str.strip().str.lower() == st.session_state.user_email]
             
             if not user_data.empty:
@@ -62,44 +63,36 @@ else:
                 # --- BOTÃO DE DIAGNÓSTICO COM CORREÇÃO DO ERRO 404 ---
                 if st.button("🚀 GERAR DIAGNÓSTICO"):
                     try:
-                        # Configura a API Key do Gemini (Nível 1)
+                        # Configura a chave da IA que está nos seus Secrets
                         genai.configure(api_key=st.secrets["gemini"]["api_key"])
                         
-                        # Chama o modelo 1.5-flash de forma estável
+                        # CHAMA O MODELO ESTÁVEL (Corrige o erro 404 da foto 0222)
                         model = genai.GenerativeModel('gemini-1.5-flash')
                         
-                        with st.spinner('O Mentor IA está analisando seu Raio-X...'):
-                            # Envia os últimos 10 registros para uma análise mais rica
+                        with st.spinner('O Mentor IA está analisando seus dados...'):
                             contexto = user_data.tail(10).to_string()
                             
                             prompt = f"""
                             Você é o Mentor IA do Método Livre da Vontade.
-                            Com base nestes registros de gatilhos do aluno:
+                            Com base nestes registros de gatilhos:
                             {contexto}
                             
-                            Dê um diagnóstico direto, firme e encorajador.
-                            Identifique padrões de comportamento e sugira uma ação prática baseada no método.
+                            Dê um diagnóstico direto, firme e encorajador para o aluno.
+                            Foque em padrões que você percebeu e sugira uma ação prática imediata.
                             """
                             
                             response = model.generate_content(prompt)
                             st.markdown("---")
                             st.markdown("### 🌿 Diagnóstico do Mentor")
                             st.info(response.text)
-                            
                     except Exception as e:
-                        # Se der erro 404 aqui, verifique a API Key nos Secrets
-                        st.error(f"Erro ao gerar diagnóstico (IA): {e}")
+                        st.error(f"Erro ao gerar diagnóstico: {e}")
             else:
-                st.warning(f"Nenhum registro encontrado para: {st.session_state.user_email}")
-                if st.button("Tentar outro e-mail"):
-                    st.session_state.logado = False
-                    st.rerun()
+                st.warning(f"Nenhum dado encontrado para: {st.session_state.user_email}")
         else:
-            st.error("A coluna de e-mail não foi detectada na planilha.")
-    else:
-        st.info("Aguardando dados da planilha...")
+            st.error("Não encontramos a coluna de e-mail na planilha. Verifique os cabeçalhos.")
 
-# Botão para sair no menu lateral
-if st.sidebar.button("Sair / Trocar de Conta"):
+# Barra lateral para logout
+if st.sidebar.button("Sair"):
     st.session_state.logado = False
     st.rerun()
