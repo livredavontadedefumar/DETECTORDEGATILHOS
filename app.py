@@ -47,7 +47,7 @@ else:
         # --- BOTÃO DE DIAGNÓSTICO (Ajustado para Gemini-1.0-Pro) ---
         if st.button("🚀 GERAR DIAGNÓSTICO"):
             try:
-                api_key = st.secrets["gemini"]["AIzaSyA4gEspXHyp-cLmaX36CDu54NPXqP6hjFU"]
+                api_key = st.secrets["gemini"]["api_key"]
                 
                 # URL CORRETA SUGERIDA (v1 + gemini-1.0-pro)
                 url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.0-pro:generateContent?key={api_key}"
