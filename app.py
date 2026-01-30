@@ -44,33 +44,37 @@ else:
         st.success(f"Conectado: {st.session_state.user_email}")
         st.dataframe(user_data.tail(10))
 
-        # --- BOTÃO DE DIAGNÓSTICO (FORÇANDO ROTA ESTÁVEL) ---
+        # --- BOTÃO DE DIAGNÓSTICO (VERSÃO SIMPLIFICADA SEM ERROS) ---
         if st.button("🚀 GERAR DIAGNÓSTICO"):
             try:
-                # Configura a chave
+                # 1. Configura a chave de forma direta
                 genai.configure(api_key=st.secrets["gemini"]["api_key"])
                 
-                # FORÇANDO A VERSÃO 'v1' PARA MATAR O ERRO 404 DA 'v1beta'
-                from google.generativeai.types import RequestOptions
-                
+                # 2. Define o modelo (usando a forma mais compatível possível)
                 model = genai.GenerativeModel('gemini-1.5-flash')
                 
-                with st.spinner('O Mentor IA está analisando...'):
+                with st.spinner('O Mentor IA está analisando seus dados...'):
+                    # Pega os dados que já aparecem na sua tela
                     contexto = user_data.tail(10).to_string()
-                    prompt = f"Como Mentor do Método Livre da Vontade, analise estes gatilhos e dê um conselho curto: {contexto}"
                     
-                    # A mágica está aqui: forçamos a API a não usar a rota beta
-                    response = model.generate_content(
-                        prompt,
-                        request_options=RequestOptions(api_version='v1')
-                    )
+                    prompt = f"""
+                    Você é o Mentor do Método Livre da Vontade.
+                    Analise os seguintes registros de gatilhos:
+                    {contexto}
+                    
+                    Dê um diagnóstico curto e uma orientação prática.
+                    """
+                    
+                    # 3. Gera o conteúdo
+                    response = model.generate_content(prompt)
                     
                     st.markdown("---")
                     st.markdown("### 🌿 Diagnóstico do Mentor")
                     st.info(response.text)
+                    
             except Exception as e:
                 st.error(f"Erro na IA: {e}")
-                st.info("Dica: Verifique se sua API Key no AI Studio está ativa.")
+                st.info("Verifique se sua API Key está ativa no Google AI Studio.")
 
 if st.sidebar.button("Sair"):
     st.session_state.logado = False
