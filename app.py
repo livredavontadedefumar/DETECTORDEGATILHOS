@@ -83,7 +83,7 @@ else:
                     api_key = st.secrets["gemini"]["api_key"]
                     
                     # Endpoint v1 estável com modelo 1.0-pro (Mata o erro 404)
-                    base_url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent"
+                    base_url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent"
                     
                     # Prepara os dados para análise
                     contexto = user_data.tail(10).to_string()
