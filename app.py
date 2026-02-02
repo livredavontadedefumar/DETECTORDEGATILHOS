@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import gspread
 from google.oauth2.service_account import Credentials
-import requests
+import google.generativeai as genai
 
 # Configuração da Página
 st.set_page_config(page_title="Mentor IA - Livre da Vontade", page_icon="🌿", layout="wide")
@@ -28,6 +28,7 @@ def buscar_dados_aluno(email_usuario):
 
         # Filtro por e-mail (flexível para variações no nome da coluna)
         def filtrar_por_email(df, email):
+            if df.empty: return pd.DataFrame()
             col_email = next((c for c in df.columns if "email" in c.lower() or "e-mail" in c.lower()), None)
             if col_email:
                 return df[df[col_email].str.strip().str.lower() == email.lower()]
@@ -39,7 +40,7 @@ def buscar_dados_aluno(email_usuario):
         return perfil_aluno, gatilhos_aluno
 
     except Exception as e:
-        st.error(f"Erro ao acessar as abas: {e}")
+        st.error(f"Erro ao acessar as planilhas: {e}")
         return pd.DataFrame(), pd.DataFrame()
 
 # --- 2. INTERFACE ---
@@ -74,55 +75,53 @@ else:
         with col1:
             if not perfil.empty:
                 st.info("✅ Perfil Inicial Identificado")
-                # Pega as últimas respostas do perfil
+                # Exibe de forma mais limpa apenas a última resposta
                 st.write(perfil.tail(1).T) 
         with col2:
             if not gatilhos.empty:
                 st.info("✅ Gatilhos Recentes Mapeados")
                 st.dataframe(gatilhos.tail(5))
 
-        # --- 3. LÓGICA DA IA ---
+        # --- 3. LÓGICA DA IA (BIBLIOTECA OFICIAL) ---
         if st.button("🚀 GERAR DIAGNÓSTICO DO MENTOR"):
             try:
-                api_key = st.secrets["gemini"]["api_key"]
-                url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
+                # Configuração da API Oficial
+                genai.configure(api_key=st.secrets["gemini"]["api_key"])
+                model = genai.GenerativeModel('gemini-1.5-flash')
                 
-                # Montagem do Prompt com dados cruzados das duas abas
-                contexto_perfil = perfil.to_string() if not perfil.empty else "Não informado"
-                contexto_gatilhos = gatilhos.tail(5).to_string() if not gatilhos.empty else "Sem gatilhos recentes"
+                # Preparação do Contexto
+                contexto_perfil = perfil.tail(1).to_dict(orient='records')
+                contexto_gatilhos = gatilhos.tail(5).to_dict(orient='records')
                 
                 prompt_mentor = f"""
-                Você é o Mentor IA do projeto Livre da Vontade de Fumar, criado por Clayton Chalegre.
-                Use a ciência do condicionamento (Pavlov) e erro de previsão de recompensa (Skinner).
+                Você é o Mentor IA do projeto 'Livre da Vontade de Fumar', criado por Clayton Chalegre.
+                Sua base técnica é a Análise Funcional (Alberto Dell'Isola) e o Condicionamento Pavloviano.
 
-                PERFIL PSICOLÓGICO DO ALUNO (ENTREVISTA INICIAL):
-                {contexto_perfil}
-
-                GATILHOS RECENTES (MAPEAMENTO DIÁRIO):
-                {contexto_gatilhos}
+                DADOS DO ALUNO:
+                Perfil: {contexto_perfil}
+                Gatilhos Recentes: {contexto_gatilhos}
 
                 SUA MISSÃO:
-                1. Analise como o perfil psicológico (ex: busca por companhia ou alívio de ansiedade) se reflete nos gatilhos recentes.
-                2. Explique que o 'craving' (vontade) é apenas um disparo de dopamina baseado num erro de previsão.
-                3. Dê uma instrução prática e firme para o aluno aplicar AGORA.
-                4. Use o tom de voz do Clayton: Transformador, firme, sem julgamentos e focado em resultado.
+                1. Identifique o padrão: Como o perfil emocional do aluno (ex: ver o cigarro como companhia) explica os gatilhos recentes?
+                2. Use a ciência: Explique brevemente que o desejo é apenas um disparo de dopamina (previsão de prazer).
+                3. Instrução Prática: Dê uma ordem direta baseada no método (ex: respiração 4-7-8 ou desvio de padrão).
+                4. Estilo: Seja firme como o Clayton, acolhedor mas sem aceitar desculpas do vício.
+
+                Responda em português de forma direta e transformadora.
                 """
 
-                payload = {"contents": [{"parts": [{"text": prompt_mentor}]}]}
-                
-                with st.spinner('O Mentor está analisando seu perfil e seus gatilhos...'):
-                    response = requests.post(url, headers={"Content-Type": "application/json"}, json=payload, timeout=30)
-                    if response.status_code == 200:
-                        resultado = response.json()
-                        texto_ia = resultado['candidates'][0]['content']['parts'][0]['text']
+                with st.spinner('O Mentor está processando sua libertação...'):
+                    response = model.generate_content(prompt_mentor)
+                    
+                    if response.text:
                         st.markdown("---")
                         st.markdown("### 🌿 Resposta Personalizada do Mentor")
-                        st.info(texto_ia)
+                        st.info(response.text)
                     else:
-                        st.error("Falha na API do Gemini.")
+                        st.error("O Gemini não retornou uma resposta válida.")
 
             except Exception as e:
-                st.error(f"Erro ao gerar diagnóstico: {e}")
+                st.error(f"Erro na conexão com a Inteligência Artificial: {e}")
 
     if st.sidebar.button("Trocar Usuário"):
         st.session_state.logado = False
