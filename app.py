@@ -75,19 +75,20 @@ else:
         with col1:
             if not perfil.empty:
                 st.info("✅ Perfil Inicial Identificado")
-                # Exibe de forma mais limpa apenas a última resposta
                 st.write(perfil.tail(1).T) 
         with col2:
             if not gatilhos.empty:
                 st.info("✅ Gatilhos Recentes Mapeados")
                 st.dataframe(gatilhos.tail(5))
 
-        # --- 3. LÓGICA DA IA (BIBLIOTECA OFICIAL) ---
+        # --- 3. LÓGICA DA IA (MODELO ATUALIZADO) ---
         if st.button("🚀 GERAR DIAGNÓSTICO DO MENTOR"):
             try:
-                # Configuração da API Oficial
+                # Configuração da API
                 genai.configure(api_key=st.secrets["gemini"]["api_key"])
-                model = genai.GenerativeModel('gemini-pro')
+                
+                # Definindo o modelo (usando o flash 1.5 que é mais rápido e moderno)
+                model = genai.GenerativeModel('gemini-1.5-flash')
                 
                 # Preparação do Contexto
                 contexto_perfil = perfil.tail(1).to_dict(orient='records')
@@ -102,15 +103,15 @@ else:
                 Gatilhos Recentes: {contexto_gatilhos}
 
                 SUA MISSÃO:
-                1. Identifique o padrão: Como o perfil emocional do aluno (ex: ver o cigarro como companhia) explica os gatilhos recentes?
-                2. Use a ciência: Explique brevemente que o desejo é apenas um disparo de dopamina (previsão de prazer).
-                3. Instrução Prática: Dê uma ordem direta baseada no método (ex: respiração 4-7-8 ou desvio de padrão).
-                4. Estilo: Seja firme como o Clayton, acolhedor mas sem aceitar desculpas do vício.
+                1. Identifique o padrão: Como o perfil emocional do aluno explica os gatilhos recentes?
+                2. Use a ciência: Explique que o desejo é apenas um disparo de dopamina (previsão de prazer).
+                3. Instrução Prática: Dê uma ordem direta baseada no método Clayton Chalegre (antecipação).
+                4. Estilo: Seja firme, sem julgamentos e focado em resultado.
 
-                Responda em português de forma direta e transformadora.
+                Responda em português de forma direta.
                 """
 
-                with st.spinner('O Mentor está processando sua libertação...'):
+                with st.spinner('O Mentor está analisando seu caso...'):
                     response = model.generate_content(prompt_mentor)
                     
                     if response.text:
@@ -118,10 +119,17 @@ else:
                         st.markdown("### 🌿 Resposta Personalizada do Mentor")
                         st.info(response.text)
                     else:
-                        st.error("O Gemini não retornou uma resposta válida.")
+                        st.error("O Mentor não conseguiu gerar uma resposta agora.")
 
             except Exception as e:
                 st.error(f"Erro na conexão com a Inteligência Artificial: {e}")
+                st.write("Verificando modelos disponíveis para sua chave...")
+                try:
+                    # Lista os modelos para ajudar no diagnóstico se der erro de novo
+                    available_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
+                    st.write(f"Sua chave suporta estes modelos: {available_models}")
+                except:
+                    st.write("Não foi possível listar os modelos. Verifique sua API Key.")
 
     if st.sidebar.button("Trocar Usuário"):
         st.session_state.logado = False
