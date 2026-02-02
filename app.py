@@ -15,18 +15,15 @@ def buscar_dados_aluno(email_usuario):
         credentials = Credentials.from_service_account_info(creds_dict, scopes=scope)
         client = gspread.authorize(credentials)
         
-        # Conexão pelo nome exato do arquivo que você definiu
+        # Conexão pelo nome exato do arquivo
         sh = client.open("MAPEAMENTO (respostas)")
         
-        # 1. Busca Perfil na aba ENTREVISTA INICIAL
         ws_perfil = sh.worksheet("ENTREVISTA INICIAL")
         df_perfil_total = pd.DataFrame(ws_perfil.get_all_records())
         
-        # 2. Busca Gatilhos na aba MAPEAMENTO
         ws_gatilhos = sh.worksheet("MAPEAMENTO")
         df_gatilhos_total = pd.DataFrame(ws_gatilhos.get_all_records())
 
-        # Filtro por e-mail (flexível para variações no nome da coluna)
         def filtrar_por_email(df, email):
             if df.empty: return pd.DataFrame()
             col_email = next((c for c in df.columns if "email" in c.lower() or "e-mail" in c.lower()), None)
@@ -70,7 +67,6 @@ else:
     else:
         st.success(f"Bem-vindo(a), {st.session_state.user_email}!")
         
-        # Mostra o contexto para o usuário
         col1, col2 = st.columns(2)
         with col1:
             if not perfil.empty:
@@ -81,34 +77,28 @@ else:
                 st.info("✅ Gatilhos Recentes Mapeados")
                 st.dataframe(gatilhos.tail(5))
 
-        # --- 3. LÓGICA DA IA (MODELO ATUALIZADO) ---
+        # --- 3. LÓGICA DA IA (MODELO ATUALIZADO CONFORME SUA LISTA) ---
         if st.button("🚀 GERAR DIAGNÓSTICO DO MENTOR"):
             try:
-                # Configuração da API
                 genai.configure(api_key=st.secrets["gemini"]["api_key"])
                 
-                # Definindo o modelo (usando o flash 1.5 que é mais rápido e moderno)
-                model = genai.GenerativeModel('gemini-1.5-flash')
+                # USANDO O MODELO QUE APARECEU NA SUA LISTA COMO DISPONÍVEL
+                model = genai.GenerativeModel('gemini-2.0-flash')
                 
-                # Preparação do Contexto
                 contexto_perfil = perfil.tail(1).to_dict(orient='records')
                 contexto_gatilhos = gatilhos.tail(5).to_dict(orient='records')
                 
                 prompt_mentor = f"""
                 Você é o Mentor IA do projeto 'Livre da Vontade de Fumar', criado por Clayton Chalegre.
-                Sua base técnica é a Análise Funcional (Alberto Dell'Isola) e o Condicionamento Pavloviano.
-
                 DADOS DO ALUNO:
                 Perfil: {contexto_perfil}
                 Gatilhos Recentes: {contexto_gatilhos}
 
-                SUA MISSÃO:
-                1. Identifique o padrão: Como o perfil emocional do aluno explica os gatilhos recentes?
-                2. Use a ciência: Explique que o desejo é apenas um disparo de dopamina (previsão de prazer).
-                3. Instrução Prática: Dê uma ordem direta baseada no método Clayton Chalegre (antecipação).
-                4. Estilo: Seja firme, sem julgamentos e focado em resultado.
-
-                Responda em português de forma direta.
+                MISSÃO:
+                1. Analise o perfil emocional e os gatilhos.
+                2. Explique o desejo como um disparo de dopamina (previsão de prazer).
+                3. Dê uma instrução firme e prática de antecipação.
+                4. Fale como o Clayton Chalegre.
                 """
 
                 with st.spinner('O Mentor está analisando seu caso...'):
@@ -118,18 +108,9 @@ else:
                         st.markdown("---")
                         st.markdown("### 🌿 Resposta Personalizada do Mentor")
                         st.info(response.text)
-                    else:
-                        st.error("O Mentor não conseguiu gerar uma resposta agora.")
 
             except Exception as e:
                 st.error(f"Erro na conexão com a Inteligência Artificial: {e}")
-                st.write("Verificando modelos disponíveis para sua chave...")
-                try:
-                    # Lista os modelos para ajudar no diagnóstico se der erro de novo
-                    available_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
-                    st.write(f"Sua chave suporta estes modelos: {available_models}")
-                except:
-                    st.write("Não foi possível listar os modelos. Verifique sua API Key.")
 
     if st.sidebar.button("Trocar Usuário"):
         st.session_state.logado = False
