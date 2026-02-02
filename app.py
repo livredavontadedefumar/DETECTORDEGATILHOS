@@ -87,7 +87,7 @@ else:
             try:
                 # Configuração da API Oficial
                 genai.configure(api_key=st.secrets["gemini"]["api_key"])
-                model = genai.GenerativeModel('gemini-1.5-flash-latest')
+                model = genai.GenerativeModel('gemini-pro')
                 
                 # Preparação do Contexto
                 contexto_perfil = perfil.tail(1).to_dict(orient='records')
