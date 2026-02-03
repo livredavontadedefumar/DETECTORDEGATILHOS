@@ -3,7 +3,6 @@ import pandas as pd
 import gspread
 from google.oauth2.service_account import Credentials
 import google.generativeai as genai
-import plotly.express as px
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title="Mentor IA - Livre da Vontade", page_icon="🌿", layout="wide")
@@ -72,64 +71,54 @@ if pagina == "Área do Aluno":
         else:
             st.success(f"Logado: {email}")
             
-            # --- DASHBOARD VISUAL (LOOKER STYLE) ---
-            if not gatilhos.empty:
-                st.subheader("📊 Análise de Comportamento")
-                c1, c2, c3 = st.columns(3)
-                with c1:
-                    df_rosca1 = gatilhos.iloc[:, 3].value_counts().reset_index()
-                    df_rosca1.columns = ['Gatilho', 'Qtd']
-                    fig1 = px.pie(df_rosca1, names='Gatilho', values='Qtd', hole=0.6, title="Principais Gatilhos")
-                    st.plotly_chart(fig1, use_container_width=True)
-                with c2:
-                    try:
-                        df_rosca2 = gatilhos.iloc[:, 7].value_counts().reset_index()
-                        df_rosca2.columns = ['Emoção', 'Qtd']
-                        fig2 = px.pie(df_rosca2, names='Emoção', values='Qtd', hole=0.6, title="Clima Emocional")
-                        st.plotly_chart(fig2, use_container_width=True)
-                    except: st.write("Aguardando mais dados de emoção...")
-                with c3:
-                    try:
-                        df_rosca3 = gatilhos.iloc[:, 8].value_counts().reset_index()
-                        df_rosca3.columns = ['Local', 'Qtd']
-                        fig3 = px.pie(df_rosca3, names='Local', values='Qtd', hole=0.6, title="Ambiente Crítico")
-                        st.plotly_chart(fig3, use_container_width=True)
-                    except: st.write("Aguardando mais dados de ambiente...")
-
-            # --- SEÇÃO DE RESUMO DO PERFIL ---
+            # --- SEÇÃO DE PERFIL E GATILHOS EM DESTAQUE ---
             st.markdown("---")
-            col_perfil, col_gatilhos_resumo = st.columns(2)
+            col_perfil, col_gatilhos_alerta = st.columns([1, 1.2])
             
             with col_perfil:
-                st.subheader("📋 Perfil do Usuário")
+                st.subheader("📋 Identidade do Aluno")
                 if not perfil.empty:
                     dados = perfil.tail(1).to_dict('records')[0]
-                    # Busca por palavras-chave em vez de nome exato
                     nome = next((v for k, v in dados.items() if "NOME" in k.upper()), "Usuário")
+                    idade = next((v for k, v in dados.items() if "ANOS" in k.upper()), "Não informada")
                     cidade = next((v for k, v in dados.items() if "CIDADE" in k.upper()), "Não informada")
-                    st.write(f"**Nome:** {nome}")
-                    st.write(f"**Localização:** {cidade}")
+                    
+                    st.info(f"""
+                    **NOME:** {nome}  
+                    **IDADE:** {idade} anos  
+                    **LOCAL:** {cidade}  
+                    *Pronto para a próxima etapa da liberdade.*
+                    """)
                 else:
                     st.write("Dados de perfil em processamento...")
 
-            with col_gatilhos_resumo:
-                st.subheader("🔥 Gatilhos Mais Frequentes")
+            with col_gatilhos_alerta:
+                st.subheader("⚠️ Alerta de Gatilhos Frequentes")
                 if not gatilhos.empty:
+                    # Ranking dos 3 maiores gatilhos (Coluna 3)
                     top_gatilhos = gatilhos.iloc[:, 3].value_counts().head(3)
-                    for g, qtd in top_gatilhos.items():
-                        st.write(f"• **{g}**: identificado {qtd} vezes")
+                    
+                    for i, (g, qtd) in enumerate(top_gatilhos.items()):
+                        # Cores diferentes para criar hierarquia visual
+                        cores = ["#FF4B4B", "#FF8B3D", "#FFC107"]
+                        st.markdown(f"""
+                        <div style="background-color:{cores[i]}; padding:15px; border-radius:10px; margin-bottom:10px; color:white; font-weight:bold;">
+                            {i+1}º GATILHO: {g.upper()} <br>
+                            <span style="font-size: 0.9em; font-weight:normal;">Detectado {qtd} vezes no seu mapeamento.</span>
+                        </div>
+                        """, unsafe_allow_html=True)
+                else:
+                    st.write("Aguardando os primeiros registros de mapeamento.")
 
-            # --- BOTÃO DO MENTOR (CORRIGIDO PARA BUSCA POR ÍNDICE) ---
+            # --- BOTÃO DO MENTOR (FOCO NO DIAGNÓSTICO PROFUNDO) ---
             st.markdown("###")
             if st.button("🚀 GERAR DIAGNÓSTICO DO MENTOR"):
                 try:
                     genai.configure(api_key=st.secrets["gemini"]["api_key"])
                     model = genai.GenerativeModel('gemini-2.0-flash')
                     
-                    # OTIMIZAÇÃO: Busca colunas pela posição (3 e 7 costumam ser Ação e Emoção)
-                    # Isso evita o erro de "Column not found"
-                    historico_leve = gatilhos.iloc[:, [3, 7]].tail(10).to_dict('records') if gatilhos.shape[1] > 7 else gatilhos.tail(10).to_dict('records')
-                    
+                    # Otimização: Pegamos dados fundamentais para evitar erro de cota
+                    historico_leve = gatilhos.iloc[:, [3, 7]].tail(10).to_dict('records')
                     contexto_completo = f"PERFIL: {perfil.tail(1).to_dict('records')} \nGATILHOS: {historico_leve}"
                     
                     prompt_blindado = f"""
@@ -138,7 +127,7 @@ if pagina == "Área do Aluno":
                     DADOS DO ALUNO:
                     {contexto_completo}
 
-                    SUA MISSÃO:
+                    SUA MISSÃO (PADRÃO BLINDADO):
                     1. Analise os gatilhos e o perfil histórico do aluno.
                     2. Explique tecnicamente o 'Sino de Pavlov' e o erro de previsão de dopamina.
                     3. Relacione a emoção predominante com o ato de fumar.
@@ -154,8 +143,8 @@ if pagina == "Área do Aluno":
                         st.info(response.text)
                 
                 except Exception as e:
-                    if "ResourceExhausted" in str(e) or "429" in str(e):
-                        st.error("🌿 O Mentor está atendendo muitos alunos agora. Aguarde 60 segundos e tente novamente.")
+                    if "ResourceExhausted" in str(e):
+                        st.error("🌿 O Mentor está atendendo muitos alunos. Aguarde 60 segundos e tente novamente.")
                     else:
                         st.error(f"Erro no diagnóstico: {e}")
 
@@ -186,13 +175,9 @@ elif pagina == "Área Administrativa":
 
         if not df_gatilhos_total.empty:
             st.markdown("---")
-            c1, c2, c3 = st.columns(3)
-            c1.metric("Alunos", df_perfil_total.iloc[:,1].nunique() if not df_perfil_total.empty else 0)
-            c2.metric("Mapeamentos", len(df_gatilhos_total))
+            c1, c2 = st.columns(2)
+            c1.metric("Total de Alunos", df_perfil_total.iloc[:,1].nunique() if not df_perfil_total.empty else 0)
+            c2.metric("Mapeamentos Totais", len(df_gatilhos_total))
             
-            st.write("### Ranking Global de Gatilhos")
-            df_global_gat = df_gatilhos_total.iloc[:, 3].value_counts().reset_index()
-            fig_global = px.bar(df_global_gat, x=df_global_gat.columns[0], y='count', color='count')
-            st.plotly_chart(fig_global, use_container_width=True)
-            
+            st.write("### Tabela Geral de Mapeamento")
             st.dataframe(df_gatilhos_total)
