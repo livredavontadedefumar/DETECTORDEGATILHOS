@@ -89,43 +89,63 @@ if pagina == "Área do Aluno":
                 genai.configure(api_key=st.secrets["gemini"]["api_key"])
                 model = genai.GenerativeModel('gemini-2.0-flash')
                 contexto = f"Perfil: {perfil.tail(1).to_dict()} \nGatilhos: {gatilhos.tail(10).to_dict()}"
-                prompt = f"Analise semanticamente os gatilhos deste aluno e dê uma instrução prática de antecipação: {contexto}"
+                
+                prompt_mentor = f"""
+                Você é o Mentor IA do projeto 'Livre da Vontade de Fumar', especialista em Terapia Comportamental e Metodologia Clayton Chalegre/Alberto Dell'Isola.
+                
+                DADOS DO ALUNO:
+                {contexto}
+
+                SUA MISSÃO:
+                1. PADRONIZAÇÃO: Ignore erros de digitação. Agrupe gatilhos por intenção (ex: relaxar).
+                2. ANÁLISE: Identifique os principais 'Sinos de Pavlov' e explique o erro de previsão de dopamina.
+                3. PLANO DE ANTECIPAÇÃO: Dê uma ordem prática e firme para o aluno 'desarmar o sino'.
+                
+                ESTILO: Direto, firme e transformador (Tom de voz de Clayton Chalegre).
+                """
+                
                 with st.spinner("O Mentor está analisando..."):
-                    response = model.generate_content(prompt)
+                    response = model.generate_content(prompt_mentor)
                     st.markdown("---")
                     st.info(response.text)
 
-# --- ÁREA ADMINISTRATIVA (COM TRAVA DE SEGURANÇA) ---
+# --- ÁREA ADMINISTRATIVA (COM TRAVA DE E-MAIL E SENHA) ---
 elif pagina == "Área Administrativa":
     st.title("👑 Painel do Fundador")
     
-    # E-mail mestre autorizado
+    # Configurações de Acesso
     ADMIN_EMAIL = "livredavontadedefumar@gmail.com"
+    ADMIN_PASS = "Mc2284**lC"
     
     if "admin_logado" not in st.session_state:
         st.session_state.admin_logado = False
 
     if not st.session_state.admin_logado:
-        st.subheader("Acesso Restrito ao Administrador")
-        senha_admin = st.text_input("Digite o e-mail administrativo:", type="default").strip().lower()
-        if st.button("Validar Acesso"):
-            if senha_admin == ADMIN_EMAIL:
-                st.session_state.admin_logado = True
-                st.success("Acesso autorizado!")
-                st.rerun()
-            else:
-                st.error("E-mail não autorizado para esta área.")
-    else:
-        # TUDO AQUI DENTRO SÓ APARECE SE LOGAR COM O EMAIL CERTO
-        st.success(f"Bem-vindo, Clayton! Gerenciando dados de {ADMIN_EMAIL}")
+        st.subheader("🔒 Acesso Restrito ao Administrador")
         
-        if st.button("Sair do Painel ADM"):
+        with st.form("login_admin"):
+            email_adm = st.text_input("E-mail Administrativo:").strip().lower()
+            senha_adm = st.text_input("Senha de Acesso:", type="password")
+            botao_login = st.form_submit_button("Acessar Painel")
+            
+            if botao_login:
+                if email_adm == ADMIN_EMAIL and senha_adm == ADMIN_PASS:
+                    st.session_state.admin_logado = True
+                    st.success("Acesso autorizado!")
+                    st.rerun()
+                else:
+                    st.error("E-mail ou Senha incorretos.")
+    else:
+        st.sidebar.success("Sessão Administrativa Ativa")
+        if st.sidebar.button("Encerrar Sessão ADM"):
             st.session_state.admin_logado = False
             st.rerun()
 
+        st.success(f"Bem-vindo, Clayton! Gerenciando dados de {ADMIN_EMAIL}")
+
         if not df_gatilhos_total.empty:
             st.markdown("---")
-            # MÉTRICAS
+            # MÉTRICAS GLOBAIS
             c1, c2, c3 = st.columns(3)
             c1.metric("Total de Alunos", df_perfil_total.iloc[:,1].nunique() if not df_perfil_total.empty else 0)
             c2.metric("Gatilhos Mapeados", len(df_gatilhos_total))
@@ -137,16 +157,22 @@ elif pagina == "Área Administrativa":
             if not horas.empty:
                 st.line_chart(horas.value_counts().sort_index())
 
-            st.write("### Ranking de Gatilhos Mentais")
+            st.write("### Ranking de Gatilhos Mentais (Top 10)")
             col_gatilho = df_gatilhos_total.columns[3] 
             st.bar_chart(df_gatilhos_total[col_gatilho].value_counts().head(10))
             
-            # BOTÃO DE DIAGNÓSTICO GLOBAL (SOMENTE ADM VÊ)
+            # INSIGHT GLOBAL DA TURMA
             if st.button("📊 GERAR INSIGHT GLOBAL DA TURMA"):
                 genai.configure(api_key=st.secrets["gemini"]["api_key"])
                 model = genai.GenerativeModel('gemini-2.0-flash')
                 resumo_global = df_gatilhos_total[col_gatilho].value_counts().head(15).to_string()
-                prompt_adm = f"Você é um analista de dados do projeto Livre da Vontade. Analise esses gatilhos mais frequentes da turma e sugira ao Clayton qual deve ser o próximo tema de aula: {resumo_global}"
+                
+                prompt_adm = f"""
+                Você é um analista de dados estratégico do projeto Livre da Vontade. 
+                Analise esses gatilhos mais frequentes da turma: {resumo_global}
+                Sugira ao Clayton qual deve ser o próximo tema de aula ou live para atacar a dor principal do grupo.
+                """
+                
                 with st.spinner("Analisando toda a turma..."):
                     response = model.generate_content(prompt_adm)
                     st.info(response.text)
