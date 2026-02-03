@@ -36,35 +36,53 @@ def carregar_todos_os_dados():
 
 df_perfil_total, df_gatilhos_total = carregar_todos_os_dados()
 
-# --- FUNÇÃO PARA GERAR PDF ---
-def gerar_pdf(nome_aluno, texto_diagnostico):
+# --- FUNÇÃO PARA GERAR PDF DINÂMICO ---
+def gerar_pdf_formatado(dados_perfil, top_gatilhos, texto_diagnostico):
     pdf = FPDF()
     pdf.add_page()
     
-    # Cabeçalho
-    pdf.set_font("Arial", "B", 16)
+    # Cabeçalho Principal
+    pdf.set_font("Arial", "B", 18)
     pdf.set_text_color(46, 125, 50) # Verde do projeto
-    pdf.cell(200, 10, txt="Livre da Vontade de Fumar", ln=True, align="C")
+    pdf.cell(0, 15, txt="Livre da Vontade de Fumar", ln=True, align="C")
     
+    # Seção 1: Identidade do Aluno (Topo da Página)
+    pdf.set_fill_color(240, 240, 240)
     pdf.set_font("Arial", "B", 12)
     pdf.set_text_color(0, 0, 0)
-    pdf.cell(200, 10, txt=f"Diagnóstico Personalizado - Mentor IA", ln=True, align="C")
-    pdf.ln(10)
-    
-    # Nome do Aluno
-    pdf.set_font("Arial", "B", 11)
-    pdf.cell(200, 10, txt=f"Aluno(a): {nome_aluno}", ln=True)
+    pdf.cell(0, 10, txt="IDENTIDADE DO ALUNO", ln=True, fill=True)
+    pdf.set_font("Arial", "", 10)
+    pdf.cell(0, 7, txt=f"NOME: {dados_perfil.get('nome', 'N/A')}", ln=True)
+    pdf.cell(0, 7, txt=f"IDADE: {dados_perfil.get('idade', 'N/A')} anos", ln=True)
+    pdf.cell(0, 7, txt=f"LOCAL: {dados_perfil.get('local', 'N/A')}", ln=True)
     pdf.ln(5)
     
-    # Conteúdo (Diagnóstico)
+    # Seção 2: Alerta de Gatilhos Frequentes
+    pdf.set_font("Arial", "B", 12)
+    pdf.cell(0, 10, txt="ALERTA DE GATILHOS FREQUENTES", ln=True, fill=True)
+    pdf.set_font("Arial", "B", 10)
+    for i, (g, qtd) in enumerate(top_gatilhos.items()):
+        pdf.cell(0, 7, txt=f"{i+1}º: {g.upper()} ({qtd}x)", ln=True)
+    pdf.ln(10)
+    
+    # Seção 3: Diagnóstico do Mentor (Formatação Dinâmica)
+    pdf.set_font("Arial", "B", 14)
+    pdf.set_text_color(46, 125, 50)
+    pdf.cell(0, 10, txt="RESPOSTA DO MENTOR", ln=True)
+    
     pdf.set_font("Arial", "", 11)
-    # Substitui caracteres que o FPDF não gosta (latin-1)
+    pdf.set_text_color(0, 0, 0)
+    # Limpeza de caracteres para evitar erros no PDF
     texto_limpo = texto_diagnostico.encode('latin-1', 'replace').decode('latin-1')
+    
+    # Dividindo o texto em parágrafos para uma leitura menos massiva
     pdf.multi_cell(0, 7, txt=texto_limpo)
     
-    pdf.ln(10)
+    # Rodapé
+    pdf.ln(15)
     pdf.set_font("Arial", "I", 8)
-    pdf.cell(200, 10, txt="Metodologia Clayton Chalegre - O estresse não para, sua reação sim.", ln=True, align="C")
+    pdf.set_text_color(150, 150, 150)
+    pdf.cell(0, 10, txt="Metodologia Clayton Chalegre - 'O estresse não vai parar, mas sua reação a ele pode mudar.'", ln=True, align="C")
     
     return pdf.output(dest="S").encode("latin-1")
 
@@ -107,22 +125,24 @@ if pagina == "Área do Aluno":
             st.markdown("---")
             col_perfil, col_gatilhos_alerta = st.columns([1, 1.2])
             
-            nome_aluno = "Usuário"
+            dados_aluno_pdf = {}
+            top_gatilhos_pdf = pd.Series(dtype=int)
+
             with col_perfil:
                 st.subheader("📋 Identidade do Aluno")
                 if not perfil.empty:
                     dados = perfil.tail(1).to_dict('records')[0]
-                    nome_aluno = next((v for k, v in dados.items() if "NOME" in k.upper()), "Usuário")
-                    idade = next((v for k, v in dados.items() if "ANOS" in k.upper()), "Não informada")
-                    cidade = next((v for k, v in dados.items() if "CIDADE" in k.upper()), "Não informada")
-                    st.info(f"**NOME:** {nome_aluno}\n\n**IDADE:** {idade} anos\n\n**LOCAL:** {cidade}")
+                    dados_aluno_pdf['nome'] = next((v for k, v in dados.items() if "NOME" in k.upper()), "Usuário")
+                    dados_aluno_pdf['idade'] = next((v for k, v in dados.items() if "ANOS" in k.upper()), "Não informada")
+                    dados_aluno_pdf['local'] = next((v for k, v in dados.items() if "CIDADE" in k.upper()), "Não informada")
+                    st.info(f"**NOME:** {dados_aluno_pdf['nome']}\n\n**IDADE:** {dados_aluno_pdf['idade']} anos\n\n**LOCAL:** {dados_aluno_pdf['local']}")
 
             with col_gatilhos_alerta:
                 st.subheader("⚠️ Alerta de Gatilhos Frequentes")
                 if not gatilhos.empty:
-                    top_gatilhos = gatilhos.iloc[:, 3].value_counts().head(3)
+                    top_gatilhos_pdf = gatilhos.iloc[:, 3].value_counts().head(3)
                     cores = ["#FF4B4B", "#FF8B3D", "#FFC107"]
-                    for i, (g, qtd) in enumerate(top_gatilhos.items()):
+                    for i, (g, qtd) in enumerate(top_gatilhos_pdf.items()):
                         st.markdown(f'<div style="background-color:{cores[i]}; padding:12px; border-radius:10px; margin-bottom:8px; color:white; font-weight:bold;">{i+1}º: {g.upper()} ({qtd}x)</div>', unsafe_allow_html=True)
 
             # --- BOTÃO DO MENTOR E PDF ---
@@ -136,7 +156,7 @@ if pagina == "Área do Aluno":
                     
                     prompt_blindado = f"""Você é o Mentor IA do projeto 'Livre da Vontade de Fumar'. Analise tecnicamente os gatilhos (Pavlov/Dopamina) do aluno: {contexto_completo}. Seja firme e dê um plano de antecipação com a voz de Clayton Chalegre."""
                     
-                    with st.spinner("O Mentor está processando..."):
+                    with st.spinner("O Mentor está processando sua análise profunda..."):
                         response = model.generate_content(prompt_blindado)
                         st.session_state.ultimo_diagnostico = response.text
                         st.markdown("---")
@@ -144,18 +164,19 @@ if pagina == "Área do Aluno":
                 except Exception as e:
                     st.error(f"Erro no diagnóstico: {e}")
 
-            # Botão de Download PDF (aparece se houver diagnóstico)
+            # Botão de Download PDF Formatado
             if "ultimo_diagnostico" in st.session_state:
-                pdf_data = gerar_pdf(nome_aluno, st.session_state.ultimo_diagnostico)
+                pdf_bytes = gerar_pdf_formatado(dados_aluno_pdf, top_gatilhos_pdf, st.session_state.ultimo_diagnostico)
                 st.download_button(
-                    label="📥 Baixar Diagnóstico em PDF",
-                    data=pdf_data,
-                    file_name=f"Diagnostico_LivreDaVontade_{nome_aluno}.pdf",
+                    label="📥 Baixar Diagnóstico Completo em PDF",
+                    data=pdf_bytes,
+                    file_name=f"Relatorio_LivreDaVontade_{dados_aluno_pdf.get('nome','Aluno')}.pdf",
                     mime="application/pdf"
                 )
 
 # --- ÁREA ADMINISTRATIVA ---
 elif pagina == "Área Administrativa":
+    # (Mantida a estrutura original de segurança administrativa)
     st.title("👑 Painel do Fundador")
     ADMIN_EMAIL = "livredavontadedefumar@gmail.com"
     ADMIN_PASS = "Mc2284**lC"
@@ -171,7 +192,7 @@ elif pagina == "Área Administrativa":
                 if email_adm == ADMIN_EMAIL and senha_adm == ADMIN_PASS:
                     st.session_state.admin_logado = True
                     st.rerun()
-                else: st.error("Incorreto.")
+                else: st.error("Credenciais incorretas.")
     else:
         st.success("Bem-vindo, Clayton!")
         if st.button("Sair"):
