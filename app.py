@@ -40,13 +40,10 @@ df_perfil_total, df_gatilhos_total = carregar_todos_os_dados()
 def gerar_pdf_formatado(dados_perfil, top_gatilhos, texto_diagnostico):
     pdf = FPDF()
     pdf.add_page()
-    
-    # Cabeçalho Principal
     pdf.set_font("Arial", "B", 18)
-    pdf.set_text_color(46, 125, 50) # Verde do projeto
+    pdf.set_text_color(46, 125, 50)
     pdf.cell(0, 15, txt="Livre da Vontade de Fumar", ln=True, align="C")
     
-    # Seção 1: Identidade do Aluno (Topo da Página)
     pdf.set_fill_color(240, 240, 240)
     pdf.set_font("Arial", "B", 12)
     pdf.set_text_color(0, 0, 0)
@@ -57,7 +54,6 @@ def gerar_pdf_formatado(dados_perfil, top_gatilhos, texto_diagnostico):
     pdf.cell(0, 7, txt=f"LOCAL: {dados_perfil.get('local', 'N/A')}", ln=True)
     pdf.ln(5)
     
-    # Seção 2: Alerta de Gatilhos Frequentes
     pdf.set_font("Arial", "B", 12)
     pdf.cell(0, 10, txt="ALERTA DE GATILHOS FREQUENTES", ln=True, fill=True)
     pdf.set_font("Arial", "B", 10)
@@ -65,35 +61,35 @@ def gerar_pdf_formatado(dados_perfil, top_gatilhos, texto_diagnostico):
         pdf.cell(0, 7, txt=f"{i+1}º: {g.upper()} ({qtd}x)", ln=True)
     pdf.ln(10)
     
-    # Seção 3: Diagnóstico do Mentor (Formatação Dinâmica)
     pdf.set_font("Arial", "B", 14)
     pdf.set_text_color(46, 125, 50)
     pdf.cell(0, 10, txt="RESPOSTA DO MENTOR", ln=True)
-    
     pdf.set_font("Arial", "", 11)
     pdf.set_text_color(0, 0, 0)
-    # Limpeza de caracteres para evitar erros no PDF
     texto_limpo = texto_diagnostico.encode('latin-1', 'replace').decode('latin-1')
-    
-    # Dividindo o texto em parágrafos para uma leitura menos massiva
     pdf.multi_cell(0, 7, txt=texto_limpo)
     
-    # Rodapé
     pdf.ln(15)
     pdf.set_font("Arial", "I", 8)
     pdf.set_text_color(150, 150, 150)
     pdf.cell(0, 10, txt="Metodologia Clayton Chalegre - 'O estresse não vai parar, mas sua reação a ele pode mudar.'", ln=True, align="C")
-    
     return pdf.output(dest="S").encode("latin-1")
 
-# --- 2. MENU LATERAL ---
+def filtrar_aluno(df, email_aluno):
+    if df.empty: return pd.DataFrame()
+    col_email = next((c for c in df.columns if "email" in c.lower() or "e-mail" in c.lower()), None)
+    if col_email:
+        df[col_email] = df[col_email].astype(str).str.strip().str.lower()
+        return df[df[col_email] == email_aluno]
+    return pd.DataFrame()
+
+# --- MENU LATERAL ---
 st.sidebar.title("🌿 Menu de Navegação")
 pagina = st.sidebar.radio("Ir para:", ["Área do Aluno", "Área Administrativa"])
 
 # --- ÁREA DO ALUNO ---
 if pagina == "Área do Aluno":
     st.title("🌿 Meu Mapeamento - Mentor IA")
-    
     if "user_email" not in st.session_state:
         email_input = st.text_input("Digite seu e-mail cadastrado:").strip().lower()
         if st.button("Acessar Meus Dados"):
@@ -102,15 +98,6 @@ if pagina == "Área do Aluno":
                 st.rerun()
     else:
         email = st.session_state.user_email
-        
-        def filtrar_aluno(df, email_aluno):
-            if df.empty: return pd.DataFrame()
-            col_email = next((c for c in df.columns if "email" in c.lower() or "e-mail" in c.lower()), None)
-            if col_email:
-                df[col_email] = df[col_email].astype(str).str.strip().str.lower()
-                return df[df[col_email] == email_aluno]
-            return pd.DataFrame()
-
         perfil = filtrar_aluno(df_perfil_total, email)
         gatilhos = filtrar_aluno(df_gatilhos_total, email)
 
@@ -121,10 +108,8 @@ if pagina == "Área do Aluno":
                 st.rerun()
         else:
             st.success(f"Logado: {email}")
-            
             st.markdown("---")
             col_perfil, col_gatilhos_alerta = st.columns([1, 1.2])
-            
             dados_aluno_pdf = {}
             top_gatilhos_pdf = pd.Series(dtype=int)
 
@@ -145,45 +130,29 @@ if pagina == "Área do Aluno":
                     for i, (g, qtd) in enumerate(top_gatilhos_pdf.items()):
                         st.markdown(f'<div style="background-color:{cores[i]}; padding:12px; border-radius:10px; margin-bottom:8px; color:white; font-weight:bold;">{i+1}º: {g.upper()} ({qtd}x)</div>', unsafe_allow_html=True)
 
-            # --- BOTÃO DO MENTOR E PDF ---
-            st.markdown("###")
             if st.button("🚀 GERAR DIAGNÓSTICO DO MENTOR"):
                 try:
                     genai.configure(api_key=st.secrets["gemini"]["api_key"])
                     model = genai.GenerativeModel('gemini-2.0-flash')
                     historico_leve = gatilhos.iloc[:, [3, 7]].tail(10).to_dict('records')
-                    contexto_completo = f"PERFIL: {perfil.tail(1).to_dict('records')} \nGATILHOS: {historico_leve}"
-                    
-                    prompt_blindado = f"""Você é o Mentor IA do projeto 'Livre da Vontade de Fumar'. Analise tecnicamente os gatilhos (Pavlov/Dopamina) do aluno: {contexto_completo}. Seja firme e dê um plano de antecipação com a voz de Clayton Chalegre."""
-                    
-                    with st.spinner("O Mentor está processando sua análise profunda..."):
+                    prompt_blindado = f"Você é o Mentor IA do projeto 'Livre da Vontade de Fumar'. Analise tecnicamente os gatilhos (Pavlov/Dopamina) do aluno: PERFIL: {perfil.tail(1).to_dict('records')} GATILHOS: {historico_leve}. Seja firme e dê um plano de antecipação com a voz de Clayton Chalegre."
+                    with st.spinner("Processando..."):
                         response = model.generate_content(prompt_blindado)
                         st.session_state.ultimo_diagnostico = response.text
-                        st.markdown("---")
                         st.info(st.session_state.ultimo_diagnostico)
-                except Exception as e:
-                    st.error(f"Erro no diagnóstico: {e}")
+                except Exception as e: st.error(f"Erro: {e}")
 
-            # Botão de Download PDF Formatado
             if "ultimo_diagnostico" in st.session_state:
                 pdf_bytes = gerar_pdf_formatado(dados_aluno_pdf, top_gatilhos_pdf, st.session_state.ultimo_diagnostico)
-                st.download_button(
-                    label="📥 Baixar Diagnóstico Completo em PDF",
-                    data=pdf_bytes,
-                    file_name=f"Relatorio_LivreDaVontade_{dados_aluno_pdf.get('nome','Aluno')}.pdf",
-                    mime="application/pdf"
-                )
+                st.download_button(label="📥 Baixar Diagnóstico em PDF", data=pdf_bytes, file_name=f"Relatorio_{dados_aluno_pdf.get('nome','Aluno')}.pdf", mime="application/pdf")
 
 # --- ÁREA ADMINISTRATIVA ---
 elif pagina == "Área Administrativa":
-    # (Mantida a estrutura original de segurança administrativa)
     st.title("👑 Painel do Fundador")
     ADMIN_EMAIL = "livredavontadedefumar@gmail.com"
     ADMIN_PASS = "Mc2284**lC"
     
-    if "admin_logado" not in st.session_state:
-        st.session_state.admin_logado = False
-
+    if "admin_logado" not in st.session_state: st.session_state.admin_logado = False
     if not st.session_state.admin_logado:
         with st.form("login_admin"):
             email_adm = st.text_input("E-mail Administrativo:").strip().lower()
@@ -198,6 +167,56 @@ elif pagina == "Área Administrativa":
         if st.button("Sair"):
             st.session_state.admin_logado = False
             st.rerun()
-        if not df_gatilhos_total.empty:
-            st.metric("Total de Alunos", df_perfil_total.iloc[:,1].nunique() if not df_perfil_total.empty else 0)
+
+        # Métricas Gerais no Topo
+        st.markdown("---")
+        c1, c2 = st.columns(2)
+        c1.metric("Total de Alunos", df_perfil_total.iloc[:,1].nunique() if not df_perfil_total.empty else 0)
+        c2.metric("Mapeamentos Totais", len(df_gatilhos_total))
+
+        # Seleção de Aluno para Auditoria
+        st.subheader("🔍 Auditar Aluno Específico")
+        emails_lista = df_perfil_total.iloc[:, 1].unique().tolist() if not df_perfil_total.empty else []
+        aluno_selecionado = st.selectbox("Selecione o e-mail do aluno para analisar:", [""] + emails_lista)
+
+        if aluno_selecionado:
+            p_adm = filtrar_aluno(df_perfil_total, aluno_selecionado)
+            g_adm = filtrar_aluno(df_gatilhos_total, aluno_selecionado)
+            
+            col_p_adm, col_g_adm = st.columns([1, 1.2])
+            dados_adm_pdf = {}
+            top_g_adm_pdf = pd.Series(dtype=int)
+
+            with col_p_adm:
+                if not p_adm.empty:
+                    d = p_adm.tail(1).to_dict('records')[0]
+                    dados_adm_pdf['nome'] = next((v for k, v in d.items() if "NOME" in k.upper()), "N/A")
+                    dados_adm_pdf['idade'] = next((v for k, v in d.items() if "ANOS" in k.upper()), "N/A")
+                    dados_adm_pdf['local'] = next((v for k, v in d.items() if "CIDADE" in k.upper()), "N/A")
+                    st.info(f"**ALUNO:** {dados_adm_pdf['nome']}\n\n**IDADE:** {dados_adm_pdf['idade']}\n\n**LOCAL:** {dados_adm_pdf['local']}")
+
+            with col_g_adm:
+                if not g_adm.empty:
+                    top_g_adm_pdf = g_adm.iloc[:, 3].value_counts().head(3)
+                    for i, (g, q) in enumerate(top_g_adm_pdf.items()):
+                        st.warning(f"{i+1}º Gatilho: {g.upper()} ({q}x)")
+
+            if st.button("🚀 GERAR DIAGNÓSTICO PARA ESTE ALUNO"):
+                try:
+                    genai.configure(api_key=st.secrets["gemini"]["api_key"])
+                    model = genai.GenerativeModel('gemini-2.0-flash')
+                    h_adm = g_adm.iloc[:, [3, 7]].tail(10).to_dict('records')
+                    prompt_adm = f"Analise como Mentor IA: PERFIL {p_adm.tail(1).to_dict('records')} GATILHOS {h_adm}. Voz Clayton Chalegre."
+                    with st.spinner("Gerando diagnóstico administrativo..."):
+                        resp = model.generate_content(prompt_adm)
+                        st.session_state.diag_adm = resp.text
+                        st.info(st.session_state.diag_adm)
+                except Exception as e: st.error(f"Erro: {e}")
+
+            if "diag_adm" in st.session_state:
+                pdf_adm = gerar_pdf_formatado(dados_adm_pdf, top_g_adm_pdf, st.session_state.diag_adm)
+                st.download_button("📥 Baixar PDF do Aluno", data=pdf_adm, file_name=f"Relatorio_ADM_{dados_adm_pdf.get('nome')}.pdf")
+
+        st.markdown("---")
+        with st.expander("Ver Planilha Bruta de Mapeamentos"):
             st.dataframe(df_gatilhos_total)
