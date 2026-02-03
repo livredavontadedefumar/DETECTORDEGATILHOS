@@ -96,14 +96,13 @@ if pagina == "Área do Aluno":
                         st.plotly_chart(fig3, use_container_width=True)
                     except: st.write("Aguardando mais dados de ambiente...")
 
-            # --- SEÇÃO DE RESUMO DO PERFIL (MELHORIA FOTO 2 e 5) ---
+            # --- SEÇÃO DE RESUMO DO PERFIL ---
             st.markdown("---")
             col_perfil, col_gatilhos_resumo = st.columns(2)
             
             with col_perfil:
                 st.subheader("📋 Perfil do Usuário")
                 if not perfil.empty:
-                    # Extração amigável de dados para evitar tabelas brutas
                     dados = perfil.tail(1).to_dict('records')[0]
                     nome = dados.get('SEU NOME É?', 'Usuário')
                     idade = dados.get('QUANTOS ANOS VOCÊ TEM?', '')
@@ -123,35 +122,45 @@ if pagina == "Área do Aluno":
                 else:
                     st.write("Inicie seu mapeamento para ver os destaques.")
 
-            # --- BOTÃO DO MENTOR (BLINDADO - FOTO 6) ---
+            # --- BOTÃO DO MENTOR (OTIMIZADO PARA EVITAR ERRO DE COTA) ---
             st.markdown("###")
             if st.button("🚀 GERAR DIAGNÓSTICO DO MENTOR"):
-                genai.configure(api_key=st.secrets["gemini"]["api_key"])
-                model = genai.GenerativeModel('gemini-2.0-flash')
-                
-                contexto_completo = f"PERFIL: {perfil.tail(1).to_dict()} \nGATILHOS: {gatilhos.tail(15).to_dict()}"
-                
-                # PROMPT BLINDADO - NÃO ALTERAR SEM COMANDO DIRETO
-                prompt_blindado = f"""
-                Você é o Mentor IA do projeto 'Livre da Vontade de Fumar', especialista em Terapia Comportamental e Metodologia Clayton Chalegre/Alberto Dell'Isola.
-                
-                DADOS DO ALUNO:
-                {contexto_completo}
+                try:
+                    genai.configure(api_key=st.secrets["gemini"]["api_key"])
+                    model = genai.GenerativeModel('gemini-2.0-flash')
+                    
+                    # Otimização de dados para reduzir consumo de tokens
+                    # Pegamos apenas as colunas vitais e limitamos o histórico para os últimos 10 mapeamentos
+                    historico_leve = gatilhos[['O QUE VOCÊ ESTAVA FAZENDO ?', 'O QUE VOCÊ SENTIU ?']].tail(10).to_dict('records')
+                    contexto_completo = f"PERFIL: {perfil.tail(1).to_dict('records')} \nGATILHOS: {historico_leve}"
+                    
+                    # PROMPT BLINDADO - NÃO ALTERAR SEM COMANDO DIRETO
+                    prompt_blindado = f"""
+                    Você é o Mentor IA do projeto 'Livre da Vontade de Fumar', especialista em Terapia Comportamental e Metodologia Clayton Chalegre/Alberto Dell'Isola.
+                    
+                    DADOS DO ALUNO:
+                    {contexto_completo}
 
-                SUA MISSÃO (MANTER O PADRÃO APROVADO):
-                1. Analise os gatilhos e o perfil histórico do aluno.
-                2. Explique tecnicamente o 'Sino de Pavlov' e o erro de previsão de dopamina.
-                3. Relacione a emoção predominante (ex: ansiedade/tédio) com o ato de fumar.
-                4. Entregue um plano de antecipação prático e firme.
+                    SUA MISSÃO (MANTER O PADRÃO APROVADO):
+                    1. Analise os gatilhos e o perfil histórico do aluno.
+                    2. Explique tecnicamente o 'Sino de Pavlov' e o erro de previsão de dopamina.
+                    3. Relacione a emoção predominante (ex: ansiedade/tédio) com o ato de fumar.
+                    4. Entregue um plano de antecipação prático e firme.
+                    
+                    ESTILO: Direto, firme, técnico e transformador (Voz de Clayton Chalegre).
+                    """
+                    
+                    with st.spinner("O Mentor está processando sua análise profunda..."):
+                        response = model.generate_content(prompt_blindado)
+                        st.markdown("---")
+                        st.markdown("### 🌿 Resposta do Mentor")
+                        st.info(response.text)
                 
-                ESTILO: Direto, firme, técnico e transformador (Voz de Clayton Chalegre).
-                """
-                
-                with st.spinner("O Mentor está processando sua análise profunda..."):
-                    response = model.generate_content(prompt_blindado)
-                    st.markdown("---")
-                    st.markdown("### 🌿 Resposta do Mentor")
-                    st.info(response.text)
+                except Exception as e:
+                    if "ResourceExhausted" in str(e) or "429" in str(e):
+                        st.error("🌿 O Mentor está atendendo muitos alunos agora. Por favor, aguarde 60 segundos e clique novamente para receber seu diagnóstico.")
+                    else:
+                        st.error(f"Ocorreu um erro inesperado: {e}")
 
 # --- ÁREA ADMINISTRATIVA ---
 elif pagina == "Área Administrativa":
