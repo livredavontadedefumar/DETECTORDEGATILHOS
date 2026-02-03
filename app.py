@@ -104,12 +104,11 @@ if pagina == "Área do Aluno":
                 st.subheader("📋 Perfil do Usuário")
                 if not perfil.empty:
                     dados = perfil.tail(1).to_dict('records')[0]
-                    nome = dados.get('SEU NOME É?', 'Usuário')
-                    idade = dados.get('QUANTOS ANOS VOCÊ TEM?', '')
-                    cidade = dados.get('DE QUE CIDADE / ESTADO VOCÊ É?', '')
+                    # Busca por palavras-chave em vez de nome exato
+                    nome = next((v for k, v in dados.items() if "NOME" in k.upper()), "Usuário")
+                    cidade = next((v for k, v in dados.items() if "CIDADE" in k.upper()), "Não informada")
                     st.write(f"**Nome:** {nome}")
                     st.write(f"**Localização:** {cidade}")
-                    st.write(f"**Jornada:** {idade} anos de idade. Foco total na liberdade.")
                 else:
                     st.write("Dados de perfil em processamento...")
 
@@ -119,32 +118,30 @@ if pagina == "Área do Aluno":
                     top_gatilhos = gatilhos.iloc[:, 3].value_counts().head(3)
                     for g, qtd in top_gatilhos.items():
                         st.write(f"• **{g}**: identificado {qtd} vezes")
-                else:
-                    st.write("Inicie seu mapeamento para ver os destaques.")
 
-            # --- BOTÃO DO MENTOR (OTIMIZADO PARA EVITAR ERRO DE COTA) ---
+            # --- BOTÃO DO MENTOR (CORRIGIDO PARA BUSCA POR ÍNDICE) ---
             st.markdown("###")
             if st.button("🚀 GERAR DIAGNÓSTICO DO MENTOR"):
                 try:
                     genai.configure(api_key=st.secrets["gemini"]["api_key"])
                     model = genai.GenerativeModel('gemini-2.0-flash')
                     
-                    # Otimização de dados para reduzir consumo de tokens
-                    # Pegamos apenas as colunas vitais e limitamos o histórico para os últimos 10 mapeamentos
-                    historico_leve = gatilhos[['O QUE VOCÊ ESTAVA FAZENDO ?', 'O QUE VOCÊ SENTIU ?']].tail(10).to_dict('records')
+                    # OTIMIZAÇÃO: Busca colunas pela posição (3 e 7 costumam ser Ação e Emoção)
+                    # Isso evita o erro de "Column not found"
+                    historico_leve = gatilhos.iloc[:, [3, 7]].tail(10).to_dict('records') if gatilhos.shape[1] > 7 else gatilhos.tail(10).to_dict('records')
+                    
                     contexto_completo = f"PERFIL: {perfil.tail(1).to_dict('records')} \nGATILHOS: {historico_leve}"
                     
-                    # PROMPT BLINDADO - NÃO ALTERAR SEM COMANDO DIRETO
                     prompt_blindado = f"""
                     Você é o Mentor IA do projeto 'Livre da Vontade de Fumar', especialista em Terapia Comportamental e Metodologia Clayton Chalegre/Alberto Dell'Isola.
                     
                     DADOS DO ALUNO:
                     {contexto_completo}
 
-                    SUA MISSÃO (MANTER O PADRÃO APROVADO):
+                    SUA MISSÃO:
                     1. Analise os gatilhos e o perfil histórico do aluno.
                     2. Explique tecnicamente o 'Sino de Pavlov' e o erro de previsão de dopamina.
-                    3. Relacione a emoção predominante (ex: ansiedade/tédio) com o ato de fumar.
+                    3. Relacione a emoção predominante com o ato de fumar.
                     4. Entregue um plano de antecipação prático e firme.
                     
                     ESTILO: Direto, firme, técnico e transformador (Voz de Clayton Chalegre).
@@ -158,9 +155,9 @@ if pagina == "Área do Aluno":
                 
                 except Exception as e:
                     if "ResourceExhausted" in str(e) or "429" in str(e):
-                        st.error("🌿 O Mentor está atendendo muitos alunos agora. Por favor, aguarde 60 segundos e clique novamente para receber seu diagnóstico.")
+                        st.error("🌿 O Mentor está atendendo muitos alunos agora. Aguarde 60 segundos e tente novamente.")
                     else:
-                        st.error(f"Ocorreu um erro inesperado: {e}")
+                        st.error(f"Erro no diagnóstico: {e}")
 
 # --- ÁREA ADMINISTRATIVA ---
 elif pagina == "Área Administrativa":
