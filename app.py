@@ -23,18 +23,22 @@ def conectar_planilha():
 def carregar_todos_os_dados():
     sh = conectar_planilha()
     if sh:
-        ws_perfil = sh.worksheet("ENTREVISTA INICIAL")
-        ws_gatilhos = sh.worksheet("MAPEAMENTO")
-        df_p = pd.DataFrame(ws_perfil.get_all_records())
-        df_g = pd.DataFrame(ws_gatilhos.get_all_records())
-        return df_p, df_g
+        try:
+            ws_perfil = sh.worksheet("ENTREVISTA INICIAL")
+            ws_gatilhos = sh.worksheet("MAPEAMENTO")
+            df_p = pd.DataFrame(ws_perfil.get_all_records())
+            df_g = pd.DataFrame(ws_gatilhos.get_all_records())
+            return df_p, df_g
+        except Exception as e:
+            st.error(f"Erro ao ler abas: {e}")
     return pd.DataFrame(), pd.DataFrame()
 
-# --- 2. LOGICA DE NAVEGAÇÃO ---
+# --- CARREGAMENTO INICIAL ---
+df_perfil_total, df_gatilhos_total = carregar_todos_os_dados()
+
+# --- 2. MENU LATERAL ---
 st.sidebar.title("🌿 Menu de Navegação")
 pagina = st.sidebar.radio("Ir para:", ["Área do Aluno", "Área Administrativa"])
-
-df_perfil_total, df_gatilhos_total = carregar_todos_os_dados()
 
 # --- ÁREA DO ALUNO ---
 if pagina == "Área do Aluno":
@@ -43,34 +47,39 @@ if pagina == "Área do Aluno":
     if "user_email" not in st.session_state:
         email_input = st.text_input("Digite seu e-mail cadastrado:").strip().lower()
         if st.button("Acessar Meus Dados"):
-            st.session_state.user_email = email_input
-            st.rerun()
+            if email_input:
+                st.session_state.user_email = email_input
+                st.rerun()
     else:
         email = st.session_state.user_email
         
-        # FILTRO ROBUSTO POR EMAIL
-        def filtrar(df, email):
-            col = next((c for c in df.columns if "email" in c.lower()), None)
-            return df[df[col].astype(str).str.lower() == email] if col else pd.DataFrame()
+        # FILTRO DE EMAIL MELHORADO (Ignora espaços e maiúsculas)
+        def filtrar_aluno(df, email_aluno):
+            if df.empty: return pd.DataFrame()
+            # Procura qualquer coluna que tenha "email" no nome
+            col_email = next((c for c in df.columns if "email" in c.lower() or "e-mail" in c.lower()), None)
+            if col_email:
+                df[col_email] = df[col_email].astype(str).str.strip().str.lower()
+                return df[df[col_email] == email_aluno]
+            return pd.DataFrame()
 
-        perfil = filtrar(df_perfil_total, email)
-        gatilhos = filtrar(df_gatilhos_total, email)
+        perfil = filtrar_aluno(df_perfil_total, email)
+        gatilhos = filtrar_aluno(df_gatilhos_total, email)
 
         if perfil.empty and gatilhos.empty:
             st.warning(f"Nenhum registro encontrado para {email}")
-            if st.button("Trocar E-mail"):
+            if st.button("Tentar outro E-mail"):
                 del st.session_state.user_email
                 st.rerun()
         else:
-            st.success(f"Logado como: {email}")
+            st.success(f"Logado: {email}")
             
-            # DASHBOARD GRÁFICO DO ALUNO
+            # GRÁFICO INDIVIDUAL (Protegido contra erros de data)
             if not gatilhos.empty:
-                st.subheader("📊 Seu Progresso na Semana")
-                # Gráfico de cigarros por dia (Simulado pelo número de entradas por data)
-                gatilhos['Data'] = pd.to_datetime(gatilhos.iloc[:, 0]).dt.date
-                contagem_dia = gatilhos['Data'].value_counts().sort_index()
-                st.bar_chart(contagem_dia)
+                st.subheader("📊 Seu Histórico de Consumo")
+                # Converte datas ignorando erros (erros viram NaT)
+                datas = pd.to_datetime(gatilhos.iloc[:, 0], errors='coerce').dt.date
+                st.bar_chart(datas.value_counts().sort_index())
 
             col1, col2 = st.columns(2)
             with col1:
@@ -80,15 +89,15 @@ if pagina == "Área do Aluno":
                 st.info("🔥 Últimos Gatilhos")
                 st.dataframe(gatilhos.tail(5))
 
-            # BOTÃO DO MENTOR (IA)
+            # BOTÃO DO MENTOR
             if st.button("🚀 GERAR DIAGNÓSTICO DO MENTOR"):
                 genai.configure(api_key=st.secrets["gemini"]["api_key"])
                 model = genai.GenerativeModel('gemini-2.0-flash')
                 
-                contexto = f"Perfil: {perfil.tail(1).to_dict()} \n Gatilhos: {gatilhos.tail(10).to_dict()}"
+                contexto = f"Perfil: {perfil.tail(1).to_dict()} \nGatilhos: {gatilhos.tail(10).to_dict()}"
                 prompt = f"Analise semanticamente os gatilhos deste aluno e dê uma instrução prática de antecipação: {contexto}"
                 
-                with st.spinner("Analisando..."):
+                with st.spinner("O Mentor está analisando..."):
                     response = model.generate_content(prompt)
                     st.markdown("---")
                     st.info(response.text)
@@ -98,25 +107,26 @@ elif pagina == "Área Administrativa":
     st.title("👑 Painel do Fundador - Clayton Chalegre")
     
     if not df_gatilhos_total.empty:
-        st.subheader("📈 Visão Geral do Projeto (Todos os Alunos)")
-        
-        # MÉTRICAS GLOBAIS
+        # MÉTRICAS
         c1, c2, c3 = st.columns(3)
-        c1.metric("Total de Alunos", df_perfil_total.iloc[:,1].nunique())
-        c2.metric("Total de Gatilhos Mapeados", len(df_gatilhos_total))
-        c3.metric("Média de Cigarros/Dia", "Em análise")
+        c1.metric("Total de Alunos", df_perfil_total.iloc[:,1].nunique() if not df_perfil_total.empty else 0)
+        c2.metric("Gatilhos Mapeados", len(df_gatilhos_total))
+        c3.metric("Status do Sistema", "Online")
 
-        # GRÁFICOS GLOBAIS
+        # GRÁFICOS GLOBAIS COM LIMPEZA DE DADOS
         st.write("### Frequência de Consumo por Horário")
-        # Extrair hora do carimbo de data/hora (coluna 0)
-        df_gatilhos_total['Hora'] = pd.to_datetime(df_gatilhos_total.iloc[:, 0]).dt.hour
-        st.line_chart(df_gatilhos_total['Hora'].value_counts().sort_index())
+        # Limpeza pesada na coluna de data/hora para evitar o erro do log
+        horas = pd.to_datetime(df_gatilhos_total.iloc[:, 0], errors='coerce').dt.hour.dropna()
+        if not horas.empty:
+            st.line_chart(horas.value_counts().sort_index())
+        else:
+            st.write("Dados de horário insuficientes para o gráfico.")
 
         st.write("### Ranking de Gatilhos Mentais")
-        # Supõe que a coluna de gatilhos tenha um nome padrão ou seja a coluna 3
-        col_gatilho = df_gatilhos_total.columns[3] 
+        col_gatilho = df_gatilhos_total.columns[3] # Geralmente a coluna do gatilho principal
         st.bar_chart(df_gatilhos_total[col_gatilho].value_counts().head(10))
-
+        
+        st.write("### Tabela Completa de Dados")
         st.dataframe(df_gatilhos_total)
     else:
-        st.error("Não foi possível carregar os dados globais.")
+        st.error("Planilha vazia ou não carregada.")
