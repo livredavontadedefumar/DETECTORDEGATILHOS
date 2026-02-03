@@ -3,7 +3,6 @@ import pandas as pd
 import gspread
 from google.oauth2.service_account import Credentials
 import google.generativeai as genai
-import plotly.express as px
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title="Mentor IA - Livre da Vontade", page_icon="🌿", layout="wide")
@@ -73,84 +72,48 @@ if pagina == "Área do Aluno":
         else:
             st.success(f"Logado: {email}")
             
-            # --- DASHBOARD VISUAL ESTILO LOOKER STUDIO ---
             if not gatilhos.empty:
-                st.subheader("📊 Sua Análise de Comportamento")
-                
-                # Tratamento de dados para os gráficos
-                df_visual = gatilhos.copy()
-                df_visual['Data/Hora'] = pd.to_datetime(df_visual.iloc[:, 0], errors='coerce')
-                df_visual['Dia'] = df_visual['Data/Hora'].dt.strftime('%d/%m (%a)')
-                
-                # 1. Gráfico de Barras: Consumo Diário
-                contagem_dia = df_visual['Dia'].value_counts().sort_index().reset_index()
-                contagem_dia.columns = ['Dia', 'Quantidade']
-                fig_dia = px.bar(contagem_dia, x='Dia', y='Quantidade', title="Cigarros por Dia", color_discrete_sequence=['#2E7D32'])
-                st.plotly_chart(fig_dia, use_container_width=True)
-
-                # 2. Gráficos de Rosca (Donut Charts) - Interatividade e Contexto
-                col_a, col_b = st.columns(2)
-                
-                with col_a:
-                    # Ranking de Gatilhos (Coluna 3 do Mapeamento)
-                    st.write("**Principais Gatilhos Mentais**")
-                    df_gat = df_visual.iloc[:, 3].value_counts().reset_index()
-                    df_gat.columns = ['Gatilho', 'Total']
-                    fig_gat = px.pie(df_gat, names='Gatilho', values='Total', hole=0.5, color_discrete_sequence=px.colors.sequential.Greens_r)
-                    st.plotly_chart(fig_gat, use_container_width=True)
-
-                with col_b:
-                    # Sentimentos/Emoções (Ajuste o índice conforme sua coluna de emoção, ex: coluna 7)
-                    st.write("**Estado Emocional no Consumo**")
-                    try:
-                        df_emo = df_visual.iloc[:, 7].value_counts().reset_index()
-                        df_emo.columns = ['Emoção', 'Total']
-                        fig_emo = px.pie(df_emo, names='Emoção', values='Total', hole=0.5, color_discrete_sequence=px.colors.sequential.RdBu)
-                        st.plotly_chart(fig_emo, use_container_width=True)
-                    except:
-                        st.write("Dados de emoção ainda não mapeados.")
+                st.subheader("📊 Seu Histórico de Consumo")
+                datas = pd.to_datetime(gatilhos.iloc[:, 0], errors='coerce').dt.date
+                st.bar_chart(datas.value_counts().sort_index())
 
             col1, col2 = st.columns(2)
             with col1:
                 st.info("📋 Perfil Identificado")
                 st.write(perfil.tail(1).T)
             with col2:
-                st.info("🔥 Dados Brutos (Últimos 5)")
+                st.info("🔥 Últimos Gatilhos")
                 st.dataframe(gatilhos.tail(5))
 
-            if st.button("🚀 GERAR DIAGNÓSTICO E COMENTÁRIOS DO MENTOR"):
+            if st.button("🚀 GERAR DIAGNÓSTICO DO MENTOR"):
                 genai.configure(api_key=st.secrets["gemini"]["api_key"])
                 model = genai.GenerativeModel('gemini-2.0-flash')
-                
-                # Resumo estatístico para a IA comentar os gráficos
-                resumo_estatistico = gatilhos.iloc[:, 3].value_counts().to_string()
-                contexto = f"Perfil: {perfil.tail(1).to_dict()} \nGatilhos (Resumo): {resumo_estatistico} \nÚltimos registros: {gatilhos.tail(5).to_dict()}"
+                contexto = f"Perfil: {perfil.tail(1).to_dict()} \nGatilhos: {gatilhos.tail(10).to_dict()}"
                 
                 prompt_mentor = f"""
-                Você é o Mentor IA do projeto 'Livre da Vontade de Fumar', criado por Clayton Chalegre.
+                Você é o Mentor IA do projeto 'Livre da Vontade de Fumar', especialista em Terapia Comportamental e Metodologia Clayton Chalegre/Alberto Dell'Isola.
                 
-                DADOS PARA ANÁLISE:
+                DADOS DO ALUNO:
                 {contexto}
 
                 SUA MISSÃO:
-                1. COMENTÁRIO INTELIGENTE: Analise os números. Se o gatilho 'Café' aparece em 70% das vezes, comente isso especificamente. 
-                2. PADRONIZAÇÃO SEMÂNTICA: Interprete variações como 'pra relaxar' e 'descansar' como a mesma intenção.
-                3. CIÊNCIA: Explique o erro de previsão de dopamina associado ao comportamento mais frequente.
-                4. ANTECIPAÇÃO: Dê um comando firme para quebrar o padrão amanhã.
+                1. PADRONIZAÇÃO: Ignore erros de digitação. Agrupe gatilhos por intenção (ex: relaxar).
+                2. ANÁLISE: Identifique os principais 'Sinos de Pavlov' e explique o erro de previsão de dopamina.
+                3. PLANO DE ANTECIPAÇÃO: Dê uma ordem prática e firme para o aluno 'desarmar o sino'.
                 
                 ESTILO: Direto, firme e transformador (Tom de voz de Clayton Chalegre).
                 """
                 
-                with st.spinner("O Mentor está analisando os gráficos e seu perfil..."):
+                with st.spinner("O Mentor está analisando..."):
                     response = model.generate_content(prompt_mentor)
                     st.markdown("---")
-                    st.markdown("### 🌿 Diagnóstico Personalizado")
                     st.info(response.text)
 
-# --- ÁREA ADMINISTRATIVA ---
+# --- ÁREA ADMINISTRATIVA (COM TRAVA DE E-MAIL E SENHA) ---
 elif pagina == "Área Administrativa":
     st.title("👑 Painel do Fundador")
     
+    # Configurações de Acesso
     ADMIN_EMAIL = "livredavontadedefumar@gmail.com"
     ADMIN_PASS = "Mc2284**lC"
     
@@ -159,13 +122,16 @@ elif pagina == "Área Administrativa":
 
     if not st.session_state.admin_logado:
         st.subheader("🔒 Acesso Restrito ao Administrador")
+        
         with st.form("login_admin"):
             email_adm = st.text_input("E-mail Administrativo:").strip().lower()
             senha_adm = st.text_input("Senha de Acesso:", type="password")
             botao_login = st.form_submit_button("Acessar Painel")
+            
             if botao_login:
                 if email_adm == ADMIN_EMAIL and senha_adm == ADMIN_PASS:
                     st.session_state.admin_logado = True
+                    st.success("Acesso autorizado!")
                     st.rerun()
                 else:
                     st.error("E-mail ou Senha incorretos.")
@@ -179,31 +145,35 @@ elif pagina == "Área Administrativa":
 
         if not df_gatilhos_total.empty:
             st.markdown("---")
+            # MÉTRICAS GLOBAIS
             c1, c2, c3 = st.columns(3)
             c1.metric("Total de Alunos", df_perfil_total.iloc[:,1].nunique() if not df_perfil_total.empty else 0)
             c2.metric("Gatilhos Mapeados", len(df_gatilhos_total))
             c3.metric("Status da IA", "Conectada")
 
-            # Gráfico de Horários Global
-            st.write("### Frequência de Consumo por Horário (Global)")
-            horas = pd.to_datetime(df_gatilhos_total.iloc[:, 0], errors='coerce').dt.hour.dropna().reset_index()
-            horas.columns = ['ID', 'Hora']
-            fig_horas = px.line(horas['Hora'].value_counts().sort_index(), title="Picos de Consumo na Turma")
-            st.plotly_chart(fig_horas, use_container_width=True)
+            # GRÁFICOS GLOBAIS
+            st.write("### Frequência de Consumo por Horário (Geral)")
+            horas = pd.to_datetime(df_gatilhos_total.iloc[:, 0], errors='coerce').dt.hour.dropna()
+            if not horas.empty:
+                st.line_chart(horas.value_counts().sort_index())
 
-            # Ranking Global de Gatilhos
-            st.write("### Top 10 Gatilhos da Turma")
+            st.write("### Ranking de Gatilhos Mentais (Top 10)")
             col_gatilho = df_gatilhos_total.columns[3] 
-            df_global_gat = df_gatilhos_total[col_gatilho].value_counts().head(10).reset_index()
-            fig_global_gat = px.bar(df_global_gat, x=col_gatilho, y='count', color='count', color_continuous_scale='Greens')
-            st.plotly_chart(fig_global_gat, use_container_width=True)
+            st.bar_chart(df_gatilhos_total[col_gatilho].value_counts().head(10))
             
+            # INSIGHT GLOBAL DA TURMA
             if st.button("📊 GERAR INSIGHT GLOBAL DA TURMA"):
                 genai.configure(api_key=st.secrets["gemini"]["api_key"])
                 model = genai.GenerativeModel('gemini-2.0-flash')
                 resumo_global = df_gatilhos_total[col_gatilho].value_counts().head(15).to_string()
-                prompt_adm = f"Analise esses gatilhos mais frequentes da turma e sugira ao Clayton qual deve ser o próximo tema de aula: {resumo_global}"
-                with st.spinner("Analisando..."):
+                
+                prompt_adm = f"""
+                Você é um analista de dados estratégico do projeto Livre da Vontade. 
+                Analise esses gatilhos mais frequentes da turma: {resumo_global}
+                Sugira ao Clayton qual deve ser o próximo tema de aula ou live para atacar a dor principal do grupo.
+                """
+                
+                with st.spinner("Analisando toda a turma..."):
                     response = model.generate_content(prompt_adm)
                     st.info(response.text)
             
