@@ -34,7 +34,6 @@ def carregar_todos_os_dados():
             st.error(f"Erro ao ler abas: {e}")
     return pd.DataFrame(), pd.DataFrame()
 
-# --- CARREGAMENTO INICIAL ---
 df_perfil_total, df_gatilhos_total = carregar_todos_os_dados()
 
 # --- 2. MENU LATERAL ---
@@ -75,72 +74,81 @@ if pagina == "Área do Aluno":
             
             # --- DASHBOARD VISUAL (LOOKER STYLE) ---
             if not gatilhos.empty:
-                st.subheader("📊 Análise de Comportamento (Looker Style)")
-                
-                # Criando as colunas para os gráficos de rosca
+                st.subheader("📊 Análise de Comportamento")
                 c1, c2, c3 = st.columns(3)
-                
                 with c1:
-                    # Gatilhos Principais (Coluna 3)
                     df_rosca1 = gatilhos.iloc[:, 3].value_counts().reset_index()
                     df_rosca1.columns = ['Gatilho', 'Qtd']
                     fig1 = px.pie(df_rosca1, names='Gatilho', values='Qtd', hole=0.6, title="Principais Gatilhos")
                     st.plotly_chart(fig1, use_container_width=True)
-                
                 with c2:
-                    # Estado Emocional (Coluna 7 - Ajuste se necessário)
                     try:
                         df_rosca2 = gatilhos.iloc[:, 7].value_counts().reset_index()
                         df_rosca2.columns = ['Emoção', 'Qtd']
                         fig2 = px.pie(df_rosca2, names='Emoção', values='Qtd', hole=0.6, title="Clima Emocional")
                         st.plotly_chart(fig2, use_container_width=True)
-                    except: st.write("Coluna de emoção não detectada.")
-
+                    except: st.write("Aguardando mais dados de emoção...")
                 with c3:
-                    # Ambiente/Local (Ajuste o índice da coluna conforme sua planilha)
                     try:
                         df_rosca3 = gatilhos.iloc[:, 8].value_counts().reset_index()
                         df_rosca3.columns = ['Local', 'Qtd']
                         fig3 = px.pie(df_rosca3, names='Local', values='Qtd', hole=0.6, title="Ambiente Crítico")
                         st.plotly_chart(fig3, use_container_width=True)
-                    except: st.write("Coluna de local não detectada.")
+                    except: st.write("Aguardando mais dados de ambiente...")
 
-            col1, col2 = st.columns(2)
-            with col1:
-                st.info("📋 Perfil Identificado")
-                st.write(perfil.tail(1).T)
-            with col2:
-                st.info("🔥 Últimos Gatilhos")
-                st.dataframe(gatilhos.tail(5))
+            # --- SEÇÃO DE RESUMO DO PERFIL (MELHORIA FOTO 2 e 5) ---
+            st.markdown("---")
+            col_perfil, col_gatilhos_resumo = st.columns(2)
+            
+            with col_perfil:
+                st.subheader("📋 Perfil do Usuário")
+                if not perfil.empty:
+                    # Extração amigável de dados para evitar tabelas brutas
+                    dados = perfil.tail(1).to_dict('records')[0]
+                    nome = dados.get('SEU NOME É?', 'Usuário')
+                    idade = dados.get('QUANTOS ANOS VOCÊ TEM?', '')
+                    cidade = dados.get('DE QUE CIDADE / ESTADO VOCÊ É?', '')
+                    st.write(f"**Nome:** {nome}")
+                    st.write(f"**Localização:** {cidade}")
+                    st.write(f"**Jornada:** {idade} anos de idade. Foco total na liberdade.")
+                else:
+                    st.write("Dados de perfil em processamento...")
 
-            # --- BOTÃO DO MENTOR (FOCO NO DIAGNÓSTICO COMPLETO) ---
+            with col_gatilhos_resumo:
+                st.subheader("🔥 Gatilhos Mais Frequentes")
+                if not gatilhos.empty:
+                    top_gatilhos = gatilhos.iloc[:, 3].value_counts().head(3)
+                    for g, qtd in top_gatilhos.items():
+                        st.write(f"• **{g}**: identificado {qtd} vezes")
+                else:
+                    st.write("Inicie seu mapeamento para ver os destaques.")
+
+            # --- BOTÃO DO MENTOR (BLINDADO - FOTO 6) ---
+            st.markdown("###")
             if st.button("🚀 GERAR DIAGNÓSTICO DO MENTOR"):
                 genai.configure(api_key=st.secrets["gemini"]["api_key"])
                 model = genai.GenerativeModel('gemini-2.0-flash')
                 
-                # Enviamos o máximo de contexto possível para o diagnóstico profundo
-                contexto_completo = f"""
-                PERFIL DO ALUNO: {perfil.tail(1).to_dict()} 
-                HISTÓRICO DE MAPEAMENTO: {gatilhos.tail(15).to_dict()}
-                """
+                contexto_completo = f"PERFIL: {perfil.tail(1).to_dict()} \nGATILHOS: {gatilhos.tail(15).to_dict()}"
                 
-                prompt_mentor = f"""
+                # PROMPT BLINDADO - NÃO ALTERAR SEM COMANDO DIRETO
+                prompt_blindado = f"""
                 Você é o Mentor IA do projeto 'Livre da Vontade de Fumar', especialista em Terapia Comportamental e Metodologia Clayton Chalegre/Alberto Dell'Isola.
                 
                 DADOS DO ALUNO:
                 {contexto_completo}
 
-                SUA MISSÃO:
-                1. PADRONIZAÇÃO SEMÂNTICA: Agrupe variações como 'pra relaxar' e 'descansar' como a mesma intenção funcional.
-                2. ANÁLISE PROFUNDA: Identifique os principais 'Sinos de Pavlov' (gatilhos) e explique tecnicamente o erro de previsão de dopamina.
-                3. CONTEXTO EMOCIONAL: Relacione o perfil do aluno (história) com os gatilhos atuais.
-                4. PLANO DE ANTECIPAÇÃO: Dê uma instrução prática, firme e clara para o aluno aplicar agora.
+                SUA MISSÃO (MANTER O PADRÃO APROVADO):
+                1. Analise os gatilhos e o perfil histórico do aluno.
+                2. Explique tecnicamente o 'Sino de Pavlov' e o erro de previsão de dopamina.
+                3. Relacione a emoção predominante (ex: ansiedade/tédio) com o ato de fumar.
+                4. Entregue um plano de antecipação prático e firme.
                 
-                ESTILO: Direto, firme, acolhedor e transformador (Tom de voz de Clayton Chalegre). Não economize na análise técnica.
+                ESTILO: Direto, firme, técnico e transformador (Voz de Clayton Chalegre).
                 """
                 
-                with st.spinner("O Mentor está processando uma análise profunda..."):
-                    response = model.generate_content(prompt_mentor)
+                with st.spinner("O Mentor está processando sua análise profunda..."):
+                    response = model.generate_content(prompt_blindado)
                     st.markdown("---")
                     st.markdown("### 🌿 Resposta do Mentor")
                     st.info(response.text)
@@ -148,7 +156,6 @@ if pagina == "Área do Aluno":
 # --- ÁREA ADMINISTRATIVA ---
 elif pagina == "Área Administrativa":
     st.title("👑 Painel do Fundador")
-    
     ADMIN_EMAIL = "livredavontadedefumar@gmail.com"
     ADMIN_PASS = "Mc2284**lC"
     
@@ -156,7 +163,6 @@ elif pagina == "Área Administrativa":
         st.session_state.admin_logado = False
 
     if not st.session_state.admin_logado:
-        st.subheader("🔒 Acesso Restrito")
         with st.form("login_admin"):
             email_adm = st.text_input("E-mail Administrativo:").strip().lower()
             senha_adm = st.text_input("Senha de Acesso:", type="password")
@@ -167,7 +173,7 @@ elif pagina == "Área Administrativa":
                 else:
                     st.error("Credenciais incorretas.")
     else:
-        st.success(f"Bem-vindo, Clayton!")
+        st.success("Bem-vindo, Clayton!")
         if st.button("Sair"):
             st.session_state.admin_logado = False
             st.rerun()
@@ -178,12 +184,6 @@ elif pagina == "Área Administrativa":
             c1.metric("Alunos", df_perfil_total.iloc[:,1].nunique() if not df_perfil_total.empty else 0)
             c2.metric("Mapeamentos", len(df_gatilhos_total))
             
-            # Gráfico Global de Horários
-            horas = pd.to_datetime(df_gatilhos_total.iloc[:, 0], errors='coerce').dt.hour.dropna()
-            st.write("### Picos de Consumo (Horário Global)")
-            st.line_chart(horas.value_counts().sort_index())
-
-            # Gráfico Global de Gatilhos (Plotly)
             st.write("### Ranking Global de Gatilhos")
             df_global_gat = df_gatilhos_total.iloc[:, 3].value_counts().reset_index()
             fig_global = px.bar(df_global_gat, x=df_global_gat.columns[0], y='count', color='count')
