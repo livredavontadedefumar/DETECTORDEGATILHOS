@@ -44,51 +44,67 @@ def area_administrativa(df_perfil, df_gatilhos):
             genai.configure(api_key=st.secrets["gemini"]["api_key"])
             model = genai.GenerativeModel('gemini-2.0-flash')
             
-            # Resumo para a IA não estourar limite de tokens, focando no que importa
-            resumo_global = df_gatilhos.tail(100).to_string() # Analisa os últimos 100 registros
+            # Resumo para a IA focar no comportamento de massa
+            resumo_global = df_gatilhos.tail(150).to_string() 
             
             prompt_admin = f"""
             Você é o consultor estratégico do Clayton Chalegre. Analise estes dados coletivos de alunos:
             {resumo_global}
             
             MISSÃO:
-            1. Identifique o perfil comum: Qual o maior gatilho da sua audiência hoje?
-            2. Horários e Emoções: Existe um padrão de horário ou sentimento que domina os alunos?
-            3. Sugestão de Conteúdo: Baseado nisso, qual tema Clayton deve abordar no próximo vídeo para ajudar o maior número de pessoas?
+            1. Identifique o padrão de massa: Qual o comportamento/gatilho mais comum entre todos?
+            2. Analise horários e locais críticos da audiência.
+            3. Sugestão de Conteúdo: Qual tema de vídeo geraria mais engajamento baseado nessas dores reais?
             """
             
-            with st.spinner("Analisando Big Data..."):
+            with st.spinner("Analisando dados da comunidade..."):
                 response = model.generate_content(prompt_admin)
-                st.light_content = response.text
-                st.info(st.light_content)
+                st.info(response.text)
         except Exception as e:
             st.error(f"Erro na análise global: {e}")
 
 # --- 3. INTERFACE PRINCIPAL ---
-st.sidebar.title("Configurações")
-menu = st.sidebar.radio("Navegação", ["Área do Aluno", "Área Administrativa"])
+st.sidebar.title("🌿 Menu de Navegação")
+menu = st.sidebar.radio("Ir para:", ["Área do Aluno", "Área Administrativa"])
 
 df_perfil_total, df_gatilhos_total = buscar_todos_os_dados()
 
+# Variável de controle de login
+if "logado" not in st.session_state:
+    st.session_state.logado = False
+if "user_email" not in st.session_state:
+    st.session_state.user_email = ""
+
 if menu == "Área Administrativa":
-    # Senha simples para proteção
-    senha = st.sidebar.text_input("Senha Admin", type="password")
-    if senha == st.secrets.get("admin_password", "clayton123"): # Defina no secrets ou use padrão
-        area_administrativa(df_perfil_total, df_gatilhos_total)
+    # Trava 1: Verifica se o e-mail logado é o administrador
+    admin_email = "livredavontadedefumar@gmail.com"
+    
+    if st.session_state.user_email != admin_email:
+        st.warning("⚠️ Esta área é restrita ao administrador. Por favor, faça login com o e-mail oficial.")
+        if not st.session_state.logado:
+            email_admin_input = st.text_input("E-mail do Administrador:").strip().lower()
+            if st.button("Validar E-mail"):
+                if email_admin_input == admin_email:
+                    st.session_state.user_email = email_admin_input
+                    st.rerun()
+                else:
+                    st.error("E-mail não autorizado para esta área.")
     else:
-        st.error("Acesso negado.")
+        # Trava 2: Verifica a senha
+        senha_admin = st.sidebar.text_input("Senha de Acesso", type="password")
+        if senha_admin == st.secrets.get("admin_password", "clayton123"):
+            area_administrativa(df_perfil_total, df_gatilhos_total)
+        elif senha_admin:
+            st.sidebar.error("Senha incorreta.")
 
 else:
-    st.title("🌿 Mentor IA - Método Clayton Chalegre")
-
-    if "logado" not in st.session_state:
-        st.session_state.logado = False
+    st.title("🌿 Mentor IA - Livre da Vontade de Fumar")
 
     if not st.session_state.logado:
-        st.subheader("Acesse seu Mapeamento Personalizado")
-        email_input = st.text_input("Digite seu e-mail:").strip().lower()
+        st.subheader("Bem-vindo! Acesse seu Mapeamento")
+        email_input = st.text_input("Digite seu e-mail cadastrado:").strip().lower()
         
-        if st.button("Acessar Mentor"):
+        if st.button("Entrar no Mentor"):
             if email_input:
                 st.session_state.user_email = email_input
                 st.session_state.logado = True
@@ -102,19 +118,20 @@ else:
         gatilhos = df_gatilhos_total[df_gatilhos_total[col_email_g].str.strip().str.lower() == st.session_state.user_email] if col_email_g else pd.DataFrame()
 
         if perfil.empty and gatilhos.empty:
-            st.warning("Nenhum registro encontrado.")
-            if st.button("Sair"):
+            st.warning(f"Nenhum registro encontrado para {st.session_state.user_email}.")
+            if st.button("Trocar Conta"):
                 st.session_state.logado = False
+                st.session_state.user_email = ""
                 st.rerun()
         else:
-            st.success(f"Conectado: {st.session_state.user_email}")
+            st.success(f"Logado como: {st.session_state.user_email}")
             
             c1, c2 = st.columns(2)
             with c1:
-                st.info("✅ Perfil Inicial")
+                st.info("✅ Resumo do Seu Perfil")
                 st.write(perfil.tail(1).T)
             with c2:
-                st.info("✅ Seus Últimos Gatilhos")
+                st.info("✅ Seus Últimos Registros")
                 st.dataframe(gatilhos.tail(5))
 
             if st.button("🚀 GERAR DIAGNÓSTICO DO MENTOR"):
@@ -123,29 +140,28 @@ else:
                     model = genai.GenerativeModel('gemini-2.0-flash')
                     
                     prompt_mentor = f"""
-                    Você é o Mentor IA do projeto 'Livre da Vontade de Fumar', mestre na metodologia Clayton Chalegre e Alberto Dell'Isola.
-                    
-                    DADOS DO ALUNO:
-                    Perfil: {perfil.tail(1).to_dict()}
-                    Histórico de Gatilhos: {gatilhos.tail(10).to_dict()}
+                    Você é o Mentor IA de Clayton Chalegre. 
+                    ALUNO: {st.session_state.user_email}
+                    PERFIL: {perfil.tail(1).to_dict()}
+                    GATILHOS: {gatilhos.tail(10).to_dict()}
 
-                    SUA MISSÃO:
-                    1. LIMPEZA SEMÂNTICA: Agrupe variações como 'pra relaxar', 'estou cansado' ou 'descansar' como a mesma intenção funcional.
-                    2. DASHBOARD NARRATIVO: Resuma os horários críticos e o principal 'Sino de Pavlov' (gatilho).
-                    3. ANÁLISE DE ENFRENTAMENTO: Explique a falsa necessidade do cigarro para realizar tarefas (Dopamina/Erro de Previsão).
-                    4. PLANO DE ATAQUE: Dê 2 ordens práticas de antecipação para o aluno aplicar agora.
-                    
-                    ESTILO: Firme, transformador e direto (Voz do Clayton).
+                    INSTRUÇÕES:
+                    1. Faça a limpeza semântica das intenções (ex: relaxar/cansado).
+                    2. Identifique os 'Sinos de Pavlov' críticos.
+                    3. Explique o erro de previsão de dopamina.
+                    4. Dê ordens práticas de antecipação.
+                    Fale como o Clayton: Firme, sem julgamentos e direto.
                     """
 
-                    with st.spinner('Analisando padrões...'):
+                    with st.spinner('Analisando sua jornada...'):
                         response = model.generate_content(prompt_mentor)
                         st.markdown("---")
-                        st.markdown("### 🌿 Diagnóstico Personalizado")
+                        st.markdown("### 🌿 Sua Orientação Personalizada")
                         st.info(response.text)
                 except Exception as e:
-                    st.error(f"Erro na IA: {e}")
+                    st.error(f"Erro na análise: {e}")
 
-    if st.sidebar.button("Trocar Usuário"):
+    if st.sidebar.button("Logoff / Sair"):
         st.session_state.logado = False
+        st.session_state.user_email = ""
         st.rerun()
