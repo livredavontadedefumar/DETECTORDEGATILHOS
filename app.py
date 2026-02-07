@@ -36,7 +36,7 @@ def carregar_todos_os_dados():
 
 df_perfil_total, df_gatilhos_total = carregar_todos_os_dados()
 
-# --- FUNÇÃO PARA GERAR PDF DINÂMICO ---
+# --- FUNÇÃO PARA GERAR PDF FORMATADO ---
 def gerar_pdf_formatado(dados_perfil, top_gatilhos, texto_diagnostico):
     pdf = FPDF()
     pdf.add_page()
@@ -58,7 +58,7 @@ def gerar_pdf_formatado(dados_perfil, top_gatilhos, texto_diagnostico):
     pdf.cell(0, 10, txt="ALERTA DE GATILHOS FREQUENTES", ln=True, fill=True)
     pdf.set_font("Arial", "B", 10)
     for i, (g, qtd) in enumerate(top_gatilhos.items()):
-        pdf.cell(0, 7, txt=f"{i+1}º: {g.upper()} ({qtd}x)", ln=True)
+        pdf.cell(0, 7, txt=f"{i+1}o: {g.upper()} ({qtd}x)", ln=True)
     pdf.ln(10)
     
     pdf.set_font("Arial", "B", 14)
@@ -72,7 +72,7 @@ def gerar_pdf_formatado(dados_perfil, top_gatilhos, texto_diagnostico):
     pdf.ln(15)
     pdf.set_font("Arial", "I", 8)
     pdf.set_text_color(150, 150, 150)
-    pdf.cell(0, 10, txt="Metodologia Clayton Chalegre - 'O estresse não vai parar, mas sua reação a ele pode mudar.'", ln=True, align="C")
+    pdf.cell(0, 10, txt="Metodologia Clayton Chalegre - 'O estresse nao vai parar, mas sua reacao a ele pode mudar.'", ln=True, align="C")
     return pdf.output(dest="S").encode("latin-1")
 
 def filtrar_aluno(df, email_aluno):
@@ -118,8 +118,8 @@ if pagina == "Área do Aluno":
                 if not perfil.empty:
                     dados = perfil.tail(1).to_dict('records')[0]
                     dados_aluno_pdf['nome'] = next((v for k, v in dados.items() if "NOME" in k.upper()), "Usuário")
-                    dados_aluno_pdf['idade'] = next((v for k, v in dados.items() if "ANOS" in k.upper()), "Não informada")
-                    dados_aluno_pdf['local'] = next((v for k, v in dados.items() if "CIDADE" in k.upper()), "Não informada")
+                    dados_aluno_pdf['idade'] = next((v for k, v in dados.items() if "ANOS" in k.upper()), "N/A")
+                    dados_aluno_pdf['local'] = next((v for k, v in dados.items() if "CIDADE" in k.upper()), "N/A")
                     st.info(f"**NOME:** {dados_aluno_pdf['nome']}\n\n**IDADE:** {dados_aluno_pdf['idade']} anos\n\n**LOCAL:** {dados_aluno_pdf['local']}")
 
             with col_gatilhos_alerta:
@@ -128,63 +128,53 @@ if pagina == "Área do Aluno":
                     top_gatilhos_pdf = gatilhos.iloc[:, 3].value_counts().head(3)
                     cores = ["#FF4B4B", "#FF8B3D", "#FFC107"]
                     for i, (g, qtd) in enumerate(top_gatilhos_pdf.items()):
-                        st.markdown(f'<div style="background-color:{cores[i]}; padding:12px; border-radius:10px; margin-bottom:8px; color:white; font-weight:bold;">{i+1}º: {g.upper()} ({qtd}x)</div>', unsafe_allow_html=True)
+                        st.markdown(f'<div style="background-color:{cores[i]}; padding:12px; border-radius:10px; margin-bottom:8px; color:white; font-weight:bold;">{i+1}o: {g.upper()} ({qtd}x)</div>', unsafe_allow_html=True)
 
             st.markdown("---")
-            total_mapeamentos = len(gatilhos)
-            
-            # Trava visual temporária (será refinada depois)
-            if total_mapeamentos < 7:
-                st.warning(f"🚨 **Diagnóstico Bloqueado:** Você possui {total_mapeamentos} mapeamentos. São necessários pelo menos **7 registros**.")
-                st.progress(min(total_mapeamentos / 7, 1.0))
-            else:
-                if st.button("🚀 GERAR DIAGNÓSTICO DO MENTOR"):
-                    try:
-                        genai.configure(api_key=st.secrets["gemini"]["api_key"])
-                        model = genai.GenerativeModel('gemini-2.0-flash')
+            if st.button("🚀 GERAR DIAGNÓSTICO DO MENTOR"):
+                try:
+                    genai.configure(api_key=st.secrets["gemini"]["api_key"])
+                    model = genai.GenerativeModel('gemini-2.0-flash')
+                    historico_leve = gatilhos.iloc[:, [3, 7]].tail(15).to_dict('records')
+                    
+                    # --- PROMPT DE FERRO 2.0 (METODOLOGIA BLINDADA) ---
+                    prompt_ferro = f"""
+                    Você é o Mentor IA do projeto 'Livre da Vontade de Fumar', porta-voz estrito da Metodologia Clayton Chalegre. 
+                    Sua base é a Terapia Comportamental e o Descondicionamento de Pavlov.
+
+                    DADOS DO ALUNO: PERFIL: {perfil.tail(1).to_dict('records')} GATILHOS: {historico_leve}
+
+                    REGRAS DE OURO (PROIBIÇÕES ABSOLUTAS):
+                    1. JAMAIS sugira Vape, cigarros eletrônicos ou qualquer substituto de nicotina.
+                    2. JAMAIS sugira ou ELOGIE a redução gradual. No #SEJALIVRE, reduzir cigarros não é o objetivo; o objetivo é o descondicionamento comportamental total. 
+                    3. Se os dados mostrarem que o aluno fumou menos, NÃO diga que isso é bom e NÃO parabenize por isso. Trate cada cigarro fumado como uma falha técnica de antecipação que precisa de ajuste no treinamento.
+                    4. JAMAIS sugira substituir o cigarro por comida ou doces.
+                    5. JAMAIS recomende medicamentos.
+
+                    DIRETRIZES TÉCNICAS:
+                    1. Explique o Erro de Previsão de Dopamina: O cérebro espera um prazer que o cigarro não entrega fisicamente; ele apenas alivia a abstinência que o próprio cigarro criou.
+                    2. Desmonte o "Sino de Pavlov": Identifique o gatilho automático baseado nos registros do aluno.
+                    3. Ordem de Antecipação: Dê uma instrução prática de ação para ser executada ANTES do gatilho acontecer.
+
+                    ESTILO: Firme, técnico, sem rodeios, direto e transformador. Use a voz de Clayton Chalegre.
+                    """
+                    
+                    with st.spinner("O Mentor está analisando seu comportamento..."):
+                        response = model.generate_content(prompt_ferro)
+                        res_texto = response.text
                         
-                        historico_leve = gatilhos.iloc[:, [3, 7]].tail(10).to_dict('records')
-                        contexto = f"PERFIL: {perfil.tail(1).to_dict('records')} GATILHOS: {historico_leve}"
+                        # Filtro de Segurança (Guardrail)
+                        proibidos = ["vape", "eletrônico", "moderado", "reduzir aos poucos", "comer doce"]
+                        if any(t in res_texto.lower() for t in proibidos):
+                            st.error("Inconsistência detectada na análise. Por favor, tente gerar novamente.")
+                        else:
+                            st.session_state.ultimo_diagnostico = res_texto
+                            st.info(st.session_state.ultimo_diagnostico)
+                except Exception as e: st.error(f"Erro ao gerar diagnóstico: {e}")
 
-                        # --- PROMPT DE FERRO BLINDADO ---
-                        prompt_ferro = f"""
-                        Você é o Mentor IA do projeto 'Livre da Vontade de Fumar', porta-voz da Metodologia Clayton Chalegre. 
-                        Sua base é a Terapia Comportamental e o Descondicionamento de Pavlov.
-
-                        DADOS DO ALUNO: {contexto}
-
-                        REGRAS DE OURO (PROIBIÇÕES ABSOLUTAS):
-                        1. JAMAIS sugira Vape, cigarros eletrônicos ou dispositivos de aquecimento.
-                        2. JAMAIS sugira redução gradual ou "fumar moderadamente".
-                        3. JAMAIS sugira substituir o cigarro por comida, doces ou outros vícios.
-                        4. JAMAIS recomende medicamentos.
-                        5. JAMAIS use linguagem de pena ou vitimização.
-
-                        DIRETRIZES TÉCNICAS:
-                        1. Explique o Erro de Previsão de Dopamina: O cérebro espera um prazer que o cigarro não entrega.
-                        2. Identifique o "Sino de Pavlov": Aponte o gatilho automático.
-                        3. Ordem de Antecipação: Dê instrução prática de ação ANTES do gatilho.
-
-                        ESTILO: Direto, firme, técnico e transformador. Use a voz de Clayton Chalegre.
-                        """
-
-                        with st.spinner("O Mentor está processando sua análise profunda..."):
-                            response = model.generate_content(prompt_ferro)
-                            res_texto = response.text
-
-                            # --- FILTRO DE SEGURANÇA (GUARDRAIL) ---
-                            proibidos = ["vape", "eletrônico", "moderado", "reduzir aos poucos", "comer doce", "chiclete de nicotina"]
-                            if any(termo in res_texto.lower() for termo in proibidos):
-                                st.error("🌿 O Mentor detectou uma recomendação fora da metodologia e bloqueou a resposta. Por favor, tente gerar novamente.")
-                            else:
-                                st.session_state.ultimo_diagnostico = res_texto
-                                st.info(st.session_state.ultimo_diagnostico)
-
-                    except Exception as e: st.error(f"Erro: {e}")
-
-                if "ultimo_diagnostico" in st.session_state:
-                    pdf_bytes = gerar_pdf_formatado(dados_aluno_pdf, top_gatilhos_pdf, st.session_state.ultimo_diagnostico)
-                    st.download_button(label="📥 Baixar Diagnóstico em PDF", data=pdf_bytes, file_name=f"Relatorio_{dados_aluno_pdf.get('nome','Aluno')}.pdf", mime="application/pdf")
+            if "ultimo_diagnostico" in st.session_state:
+                pdf_bytes = gerar_pdf_formatado(dados_aluno_pdf, top_gatilhos_pdf, st.session_state.ultimo_diagnostico)
+                st.download_button(label="📥 Baixar Diagnóstico em PDF", data=pdf_bytes, file_name=f"Relatorio_{dados_aluno_pdf.get('nome','Aluno')}.pdf", mime="application/pdf")
 
 # --- ÁREA ADMINISTRATIVA ---
 elif pagina == "Área Administrativa":
@@ -201,49 +191,49 @@ elif pagina == "Área Administrativa":
                 if email_adm == ADMIN_EMAIL and senha_adm == ADMIN_PASS:
                     st.session_state.admin_logado = True
                     st.rerun()
-                else: st.error("Credenciais incorretas.")
+                else: st.error("Acesso Negado.")
     else:
         st.success("Bem-vindo, Clayton!")
         if st.button("Sair"):
             st.session_state.admin_logado = False
             st.rerun()
 
-        st.markdown("---")
-        st.subheader("🔍 Auditar Aluno Específico")
+        st.subheader("🔍 Auditoria de Aluno")
         emails_lista = df_perfil_total.iloc[:, 1].unique().tolist() if not df_perfil_total.empty else []
-        aluno_selecionado = st.selectbox("Selecione o e-mail do aluno para analisar:", [""] + emails_lista)
+        aluno_selecionado = st.selectbox("Selecione o aluno para analisar:", [""] + emails_lista)
 
         if aluno_selecionado:
             p_adm = filtrar_aluno(df_perfil_total, aluno_selecionado)
             g_adm = filtrar_aluno(df_gatilhos_total, aluno_selecionado)
             
-            col_p_adm, col_g_adm = st.columns([1, 1.2])
+            col_p, col_g = st.columns(2)
             dados_adm_pdf = {}
             top_g_adm_pdf = pd.Series(dtype=int)
 
-            with col_p_adm:
+            with col_p:
                 if not p_adm.empty:
                     d = p_adm.tail(1).to_dict('records')[0]
                     dados_adm_pdf['nome'] = next((v for k, v in d.items() if "NOME" in k.upper()), "N/A")
                     dados_adm_pdf['idade'] = next((v for k, v in d.items() if "ANOS" in k.upper()), "N/A")
                     dados_adm_pdf['local'] = next((v for k, v in d.items() if "CIDADE" in k.upper()), "N/A")
-                    st.info(f"**ALUNO:** {dados_adm_pdf['nome']}\n\n**IDADE:** {dados_adm_pdf['idade']}\n\n**LOCAL:** {dados_adm_pdf['local']}")
+                    st.info(f"**Aluno:** {dados_adm_pdf['nome']}\n\n**Idade:** {dados_adm_pdf['idade']}\n\n**Local:** {dados_adm_pdf['local']}")
 
-            with col_g_adm:
+            with col_g:
                 if not g_adm.empty:
                     top_g_adm_pdf = g_adm.iloc[:, 3].value_counts().head(3)
                     for i, (g, q) in enumerate(top_g_adm_pdf.items()):
-                        st.warning(f"{i+1}º Gatilho: {g.upper()} ({q}x)")
-
+                        st.warning(f"{i+1}o Gatilho: {g.upper()} ({q}x)")
+            
             if st.button("🚀 GERAR DIAGNÓSTICO ADMINISTRATIVO"):
                 try:
                     genai.configure(api_key=st.secrets["gemini"]["api_key"])
                     model = genai.GenerativeModel('gemini-2.0-flash')
-                    h_adm = g_adm.iloc[:, [3, 7]].tail(10).to_dict('records')
-                    # ADM também usa o Prompt de Ferro para manter o padrão
-                    prompt_adm = f"""Analise como Mentor IA #SEJALIVRE: PERFIL {p_adm.tail(1).to_dict('records')} GATILHOS {h_adm}. 
-                    REGRAS: Proibido sugerir Vape, moderação ou redução. Foco em Pavlov e Antecipação."""
-                    with st.spinner("Gerando diagnóstico administrativo..."):
+                    h_adm = g_adm.iloc[:, [3, 7]].tail(15).to_dict('records')
+                    
+                    prompt_adm = f"""Analise como Mentor IA Clayton Chalegre: PERFIL {p_adm.tail(1).to_dict('records')} GATILHOS {h_adm}. 
+                    REGRAS: Estritamente proibido sugerir vape ou elogiar redução de danos. Foco total em Pavlov e Antecipação Técnica."""
+                    
+                    with st.spinner("Gerando diagnóstico para auditoria..."):
                         resp = model.generate_content(prompt_adm)
                         st.session_state.diag_adm = resp.text
                         st.info(st.session_state.diag_adm)
@@ -252,4 +242,3 @@ elif pagina == "Área Administrativa":
             if "diag_adm" in st.session_state:
                 pdf_adm = gerar_pdf_formatado(dados_adm_pdf, top_g_adm_pdf, st.session_state.diag_adm)
                 st.download_button("📥 Baixar PDF Administrativo", data=pdf_adm, file_name=f"Relatorio_ADM_{dados_adm_pdf.get('nome')}.pdf")
-        
