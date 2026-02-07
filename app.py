@@ -252,3 +252,4 @@ elif pagina == "Área Administrativa":
             if "diag_adm" in st.session_state:
                 pdf_adm = gerar_pdf_formatado(dados_adm_pdf, top_g_adm_pdf, st.session_state.diag_adm)
                 st.download_button("📥 Baixar PDF Administrativo", data=pdf_adm, file_name=f"Relatorio_ADM_{dados_adm_pdf.get('nome')}.pdf")
+        
