@@ -84,10 +84,10 @@ def filtrar_aluno(df, email_aluno):
         return df[df[col_email] == email_aluno]
     return pd.DataFrame()
 
-# --- INTELIGÊNCIA DE DADOS (GRANULARIDADE) ---
+# --- INTELIGÊNCIA DE DADOS ---
 
 def categorizar_inteligente(texto):
-    """ Mestra para GATILHOS (Col D) e LOCAIS (Col C) """
+    """ GATILHOS (Col D) e LOCAIS (Col C) - Mantém lógica granular """
     t = str(texto).upper().strip()
     
     # 1. BIOLÓGICOS
@@ -126,27 +126,26 @@ def categorizar_motivos(texto):
     return "OUTROS"
 
 def categorizar_habitos(texto):
-    """ Para coluna H: Hábitos Associados """
+    """ 
+    Para coluna H: Hábitos Associados
+    LÓGICA HÍBRIDA: Tenta categorizar os principais. 
+    Se não encontrar, retorna o TEXTO ORIGINAL (para não esconder dados).
+    """
     t = str(texto).upper().strip()
-    if any(k in t for k in ['CAFE', 'CAFÉ']): return "TOMAR CAFÉ"
-    if any(k in t for k in ['ALCOOL', 'ÁLCOOL', 'CERVEJA', 'BEBIDA', 'DRINK']): return "BEBER ÁLCOOL"
-    if any(k in t for k in ['CELULAR', 'REDES', 'INSTA', 'TIKTOK']): return "MEXER NO CELULAR"
-    if any(k in t for k in ['DIRIGIR', 'CARRO', 'VOLANTE']): return "DIRIGIR"
-    if any(k in t for k in ['TRABALHAR', 'PC', 'NOTEBOOK', 'EMAIL']): return "TRABALHAR"
-    if any(k in t for k in ['COMER', 'DOCE', 'SOBREMESA', 'ALMOÇO']): return "COMER"
+    
+    # Categorias Macro
+    if any(k in t for k in ['CAFE', 'CAFÉ', 'CAPUCCINO']): return "TOMAR CAFÉ"
+    if any(k in t for k in ['ALCOOL', 'ÁLCOOL', 'CERVEJA', 'BEBIDA', 'DRINK', 'VINHO']): return "BEBER ÁLCOOL"
+    if any(k in t for k in ['CELULAR', 'REDES', 'INSTA', 'TIKTOK', 'ZAP']): return "MEXER NO CELULAR"
+    if any(k in t for k in ['DIRIGIR', 'CARRO', 'VOLANTE', 'MOTO']): return "DIRIGIR"
+    if any(k in t for k in ['TRABALHAR', 'PC', 'NOTEBOOK', 'EMAIL', 'COMPUTADOR']): return "TRABALHAR"
+    if any(k in t for k in ['COMER', 'DOCE', 'SOBREMESA', 'ALMOÇO', 'JANTAR']): return "COMER/SOBREMESA"
     if any(k in t for k in ['CONVERSAR', 'PAPO', 'FALAR']): return "CONVERSAR"
-    return "OUTROS/NENHUM"
-
-def categorizar_emocoes(texto):
-    """ Para coluna G: Emoções (Granular) """
-    t = str(texto).upper().strip()
-    if any(k in t for k in ['ANSIEDADE', 'ANSIOSO', 'NERVOSO', 'TENSO', 'PREOCUPADO', 'MEDO']): return "ANSIEDADE/TENSÃO"
-    if any(k in t for k in ['TRISTE', 'DEPRIMIDO', 'CHATEADO', 'BAIXO', 'DEPRE']): return "TRISTEZA/DESÂNIMO"
-    if any(k in t for k in ['RAIVA', 'ODIO', 'ÓDIO', 'FURIOSO', 'IRRITADO', 'PUTO']): return "RAIVA/IRRITAÇÃO"
-    if any(k in t for k in ['FELIZ', 'ALEGRE', 'BEM', 'OTIMO', 'ÓTIMO', 'ANIMADO']): return "FELICIDADE/EUFORIA"
-    if any(k in t for k in ['TEDIO', 'TÉDIO', 'ENTEDIADO', 'ATOA']): return "TÉDIO"
-    if any(k in t for k in ['CULPA', 'ARREPENDIDO', 'VERGONHA']): return "CULPA"
-    return "OUTROS"
+    
+    # Se não caiu em nenhuma categoria, mostra o que o usuário escreveu (truncado para caber)
+    if len(t) > 2:
+        return t
+    return "NÃO INFORMADO"
 
 # --- FUNÇÃO DE DASHBOARD VISUAL (LAYOUT VERTICAL) ---
 def exibir_dashboard_visual(df_aluno):
@@ -196,17 +195,19 @@ def exibir_dashboard_visual(df_aluno):
             
             fig2 = px.pie(dados, names='Gatilho', values='Qtd', hole=0.5, 
                          color_discrete_sequence=px.colors.sequential.Teal)
-            fig2.update_layout(showlegend=True) # Legenda ajuda no layout vertical
+            fig2.update_layout(showlegend=True) 
             fig2.update_traces(textposition='inside', textinfo='percent+label')
             st.plotly_chart(fig2, use_container_width=True)
             st.markdown("---")
 
-        # 3. HÁBITOS ASSOCIADOS (Coluna H)
+        # 3. HÁBITOS ASSOCIADOS (Coluna H) - LOGICA HÍBRIDA
         if df_aluno.shape[1] > 7:
             st.markdown("##### 3. Hábitos Associados")
             df_temp = df_aluno.copy()
+            # Aqui usamos a nova função que preserva o texto original se não achar categoria
             df_temp['Cat'] = df_temp.iloc[:, 7].apply(categorizar_habitos)
-            dados = df_temp['Cat'].value_counts().head(5).reset_index()
+            
+            dados = df_temp['Cat'].value_counts().head(10).reset_index()
             dados.columns = ['Hábito', 'Qtd']
             
             fig3 = px.bar(dados, x='Qtd', y='Hábito', orientation='h',
@@ -245,14 +246,14 @@ def exibir_dashboard_visual(df_aluno):
             st.plotly_chart(fig5, use_container_width=True)
             st.markdown("---")
         
-        # 6. EMOÇÕES PROPRÍCIAS (Coluna G)
+        # 6. EMOÇÕES PROPRÍCIAS (Coluna G) - RAW DATA (SEM AGRUPAMENTO)
         if df_aluno.shape[1] > 6:
             st.markdown("##### 6. Emoções Propícias ao Consumo")
             df_temp = df_aluno.copy()
-            # Aplica categorização granular de emoções
-            df_temp['Cat'] = df_temp.iloc[:, 6].apply(categorizar_emocoes)
+            # Removida categorização inteligente. Apenas Maiúsculo + Strip
+            df_temp['Cat'] = df_temp.iloc[:, 6].apply(lambda x: str(x).upper().strip())
             
-            dados = df_temp['Cat'].value_counts().reset_index()
+            dados = df_temp['Cat'].value_counts().head(7).reset_index()
             dados.columns = ['Emoção', 'Qtd']
             
             fig6 = px.bar(dados, x='Qtd', y='Emoção', orientation='h',
@@ -310,7 +311,7 @@ if pagina == "Área do Aluno":
                     </div>
                     """, unsafe_allow_html=True)
             
-            # --- PAINEL DE CONSCIÊNCIA (NOVO LAYOUT VERTICAL) ---
+            # --- PAINEL DE CONSCIÊNCIA ---
             if not gatilhos.empty:
                 exibir_dashboard_visual(gatilhos)
                 if gatilhos.shape[1] > 3:
@@ -396,7 +397,6 @@ elif pagina == "Área Administrativa":
             c1.metric("Total de Alunos", df_perfil_total.iloc[:,1].nunique() if not df_perfil_total.empty else 0)
             c2.metric("Mapeamentos Registrados", len(df_gatilhos_total))
             
-            # Dashboard Geral Inteligente
             exibir_dashboard_visual(df_gatilhos_total)
 
         st.subheader("🔍 Auditoria Individual")
