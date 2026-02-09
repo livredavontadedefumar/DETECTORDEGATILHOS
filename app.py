@@ -143,15 +143,21 @@ def categorizar_habitos_hibrida(texto):
     if len(t) > 1: return t
     return "NÃO INFORMADO"
 
-# --- FUNÇÃO DE DASHBOARD VISUAL (LAYOUT MOBILE OPTIMIZED) ---
+# --- FUNÇÃO DE DASHBOARD VISUAL (LAYOUT MOBILE OPTIMIZED + MARGINS) ---
 def exibir_dashboard_visual(df_aluno):
     st.subheader("📊 Painel da Autoconsciência")
     st.markdown("---")
     
-    # Configuração Padrão para Mobile (Margens Zero)
-    mobile_layout = dict(
-        margin=dict(l=0, r=0, t=30, b=0),
+    # Configuração Padrão para PIZZA (Mobile + Margem Superior)
+    pie_layout = dict(
+        margin=dict(l=0, r=0, t=50, b=0), # t=50 evita sobreposição com filtro
         legend=dict(orientation="h", yanchor="top", y=-0.1, xanchor="center", x=0.5)
+    )
+    
+    # Configuração Padrão para BARRAS (Mobile + Margem Superior)
+    bar_layout = dict(
+        margin=dict(l=0, r=0, t=50, b=0), # t=50 evita sobreposição com filtro
+        yaxis=dict(autorange="reversed")
     )
     
     try:
@@ -175,7 +181,8 @@ def exibir_dashboard_visual(df_aluno):
             
             fig1 = px.bar(contagem_dias, x='Dia', y='Qtd', category_orders={'Dia': ordem_dias},
                          color='Qtd', color_continuous_scale='Greens')
-            fig1.update_layout(margin=dict(l=0, r=0, t=0, b=0)) # Super compacto
+            # Ajuste de margem específico para timeline
+            fig1.update_layout(margin=dict(l=0, r=0, t=50, b=0)) 
             col_chart.plotly_chart(fig1, use_container_width=True)
             st.markdown("---")
 
@@ -189,7 +196,7 @@ def exibir_dashboard_visual(df_aluno):
             
             fig2 = px.pie(dados, names='Gatilho', values='Qtd', hole=0.5, 
                          color_discrete_sequence=px.colors.sequential.Teal)
-            fig2.update_layout(**mobile_layout) # Legenda em baixo
+            fig2.update_layout(**pie_layout)
             fig2.update_traces(textposition='inside', textinfo='percent+label')
             st.plotly_chart(fig2, use_container_width=True)
             st.markdown("---")
@@ -204,11 +211,11 @@ def exibir_dashboard_visual(df_aluno):
             
             fig3 = px.bar(dados, x='Qtd', y='Hábito', orientation='h', text_auto=True,
                          color_discrete_sequence=['#2E8B57']) 
-            fig3.update_layout(yaxis=dict(autorange="reversed"), margin=dict(l=0, r=0, t=10, b=0))
+            fig3.update_layout(**bar_layout)
             st.plotly_chart(fig3, use_container_width=True)
             st.markdown("---")
 
-        # 4. MOTIVOS DE ENFRENTAMENTO (Convertido para BARRA HORIZONTAL para Mobile)
+        # 4. MOTIVOS DE ENFRENTAMENTO (Barra Horizontal)
         if df_aluno.shape[1] > 4:
             st.markdown("##### 4. Motivos de Enfrentamento")
             df_temp = df_aluno.copy()
@@ -216,10 +223,9 @@ def exibir_dashboard_visual(df_aluno):
             dados = df_temp['Cat'].value_counts().head(10).reset_index()
             dados.columns = ['Motivo', 'Qtd']
             
-            # MUDANÇA: Barra Horizontal funciona melhor que Pizza para textos longos de motivos
             fig4 = px.bar(dados, x='Qtd', y='Motivo', orientation='h', text_auto=True,
                          color='Qtd', color_continuous_scale='OrRd')
-            fig4.update_layout(yaxis=dict(autorange="reversed"), margin=dict(l=0, r=0, t=10, b=0))
+            fig4.update_layout(**bar_layout)
             st.plotly_chart(fig4, use_container_width=True)
             st.markdown("---")
 
@@ -233,12 +239,12 @@ def exibir_dashboard_visual(df_aluno):
             
             fig5 = px.pie(dados, names='Local', values='Qtd', hole=0.5,
                          color_discrete_sequence=px.colors.sequential.Blues)
-            fig5.update_layout(**mobile_layout) # Legenda em baixo
+            fig5.update_layout(**pie_layout)
             fig5.update_traces(textposition='inside', textinfo='percent+label')
             st.plotly_chart(fig5, use_container_width=True)
             st.markdown("---")
         
-        # 6. EMOÇÕES PROPRÍCIAS (Barra Horizontal)
+        # 6. EMOÇÕES PROPRÍCIAS (Barra Horizontal - Texto Puro)
         if df_aluno.shape[1] > 6:
             st.markdown("##### 6. Emoções Propícias ao Consumo")
             df_temp = df_aluno.copy()
@@ -248,7 +254,7 @@ def exibir_dashboard_visual(df_aluno):
             
             fig6 = px.bar(dados, x='Qtd', y='Emoção', orientation='h', text_auto=True,
                          color='Qtd', color_continuous_scale='Reds')
-            fig6.update_layout(yaxis=dict(autorange="reversed"), margin=dict(l=0, r=0, t=10, b=0))
+            fig6.update_layout(**bar_layout)
             st.plotly_chart(fig6, use_container_width=True)
 
     except Exception as e:
