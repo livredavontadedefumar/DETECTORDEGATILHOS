@@ -73,7 +73,7 @@ def gerar_pdf_formatado(dados_perfil, top_gatilhos, texto_diagnostico):
     pdf.ln(15)
     pdf.set_font("Arial", "I", 8)
     pdf.set_text_color(150, 150, 150)
-    pdf.cell(0, 10, txt="Metodologia Clayton Chalegre - 'O estresse nao vai parar, mas sua reacao a ele pode mudar.'", ln=True, align="C")
+    pdf.cell(0, 10, txt="Metodologia Clayton Chalegre", ln=True, align="C")
     return pdf.output(dest="S").encode("latin-1")
 
 def filtrar_aluno(df, email_aluno):
@@ -84,75 +84,84 @@ def filtrar_aluno(df, email_aluno):
         return df[df[col_email] == email_aluno]
     return pd.DataFrame()
 
-# --- CÉREBRO DE CATEGORIZAÇÃO (LÓGICA HIERÁRQUICA GRANULAR) ---
+# --- CÉREBRO DE CATEGORIZAÇÃO (GRANULARIDADE MÁXIMA) ---
 def categorizar_inteligente(texto):
     """
-    Função hierárquica para agrupar gatilhos, locais e contextos.
-    Agora com suporte específico para cômodos da casa.
+    Função Mestra: Classifica tanto LOCAIS quanto GATILHOS com precisão.
     """
     t = str(texto).upper().strip()
     
-    # NÍVEL 1: ÁREAS ESPECÍFICAS DA CASA (Antes de "Casa Geral")
-    # Aqui capturamos o "Balcão"
-    termos_cozinha = ['COZINHA', 'BALCÃO', 'BALCAO', 'GELADEIRA', 'PIA', 'FOGÃO', 'MESA', 'CHALEIRA']
-    if any(term in t for term in termos_cozinha):
-        return "COZINHA / ÁREA GOURMET"
+    # --- GRUPO 1: GATILHOS BIOLÓGICOS (PRIORIDADE MÁXIMA) ---
+    
+    # Acordar (O mais forte do dia)
+    termos_acordar = ['ACORDEI', 'ACORDANDO', 'LEVANTANDO', 'CAMA', 'JEJUM', 'PRIMEIRO', 'MANHÃ', 'DESPERTADOR']
+    if any(term in t for term in termos_acordar):
+        return "PRIMEIRO DO DIA (ACORDAR)"
 
-    termos_externo = ['VARANDA', 'SACADA', 'QUINTAL', 'JARDIM', 'GARAGEM', 'PORTÃO', 'CALÇADA', 'RUA']
-    if any(term in t for term in termos_externo):
-        return "ÁREA EXTERNA / VARANDA"
-        
-    termos_sala = ['SALA', 'SOFÁ', 'SOFA', 'TV', 'POLTRONA', 'ESTAR']
-    if any(term in t for term in termos_sala):
-        return "SALA DE ESTAR"
-
-    termos_quarto = ['QUARTO', 'CAMA', 'CABECEIRA', 'DORMITÓRIO']
-    if any(term in t for term in termos_quarto):
-        return "QUARTO"
-        
-    termos_banheiro = ['BANHEIRO', 'BANHO', 'PRIVADA', 'LAVABO']
-    if any(term in t for term in termos_banheiro):
-        return "BANHEIRO"
-
-    # NÍVEL 2: ROTINA GERAL E MOVIMENTO
-    termos_retorno = ['CHEGUEI', 'CHEGANDO', 'SAI DO', 'VINDO', 'VOLTANDO', 'CASA', 'DESCANSO', 'LAR', 'HOME']
-    if any(term in t for term in termos_retorno):
-        return "ROTINA / CASA (GERAL)"
-
-    # NÍVEL 3: GATILHOS FISIOLÓGICOS E SOCIAIS FORTES
-    termos_social = ['CERVEJA', 'BEBER', 'BAR', 'FESTA', 'AMIGOS', 'CHURRASCO', 'VINHO', 'HAPPY', 'BALADA']
-    if any(term in t for term in termos_social):
-        return "SOCIAL / ÁLCOOL"
-
-    termos_cafe = ['CAFE', 'CAFÉ', 'CAPUCCINO', 'PADARIA', 'DESJEJUM', 'MANHÃ', 'EXPRESSO']
+    # Café (Associação Pavloviana Forte)
+    termos_cafe = ['CAFE', 'CAFÉ', 'CAPUCCINO', 'PADARIA', 'DESJEJUM', 'EXPRESSO', 'COFFEE']
     if any(term in t for term in termos_cafe):
-        return "MOMENTO DO CAFÉ"
+        return "GATILHO DO CAFÉ"
 
-    termos_comida = ['ALMOÇO', 'JANTAR', 'COMER', 'FOME', 'BARRIGA', 'REFEIÇÃO', 'LANCHE', 'RESTAURANTE', 'PIZZA']
+    # Pós-Refeição (Metabolismo)
+    termos_comida = ['ALMOÇO', 'JANTAR', 'COMER', 'FOME', 'BARRIGA', 'REFEIÇÃO', 'LANCHE', 'RESTAURANTE', 'PIZZA', 'CHURRASCO', 'SOBREMESA']
     if any(term in t for term in termos_comida):
         return "PÓS-REFEIÇÃO"
 
-    # NÍVEL 4: CONTEXTOS DE ESTRESSE EXTERNO
-    termos_transito = ['CARRO', 'TRANSITO', 'TRÂNSITO', 'DIRIGINDO', 'UBER', 'ÔNIBUS', 'METRÔ', 'ENGARRAFAMENTO', 'SEMAFORO', 'MOTO']
-    if any(term in t for term in termos_transito):
-        return "TRÂNSITO"
+    # Álcool/Social
+    termos_social = ['CERVEJA', 'BEBER', 'BAR', 'FESTA', 'AMIGOS', 'VINHO', 'HAPPY', 'BALADA', 'SOCIAL']
+    if any(term in t for term in termos_social):
+        return "BEBIDA ALCOÓLICA / SOCIAL"
 
+    # --- GRUPO 2: LOCAIS ESPECÍFICOS (O "NINHO" DO VÍCIO) ---
+    
+    termos_cozinha = ['COZINHA', 'BALCÃO', 'BALCAO', 'GELADEIRA', 'PIA', 'FOGÃO', 'MESA', 'CHALEIRA']
+    if any(term in t for term in termos_cozinha):
+        return "COZINHA / BALCÃO"
+
+    termos_externo = ['VARANDA', 'SACADA', 'QUINTAL', 'JARDIM', 'GARAGEM', 'PORTÃO', 'CALÇADA', 'RUA', 'JANELA']
+    if any(term in t for term in termos_externo):
+        return "ÁREA EXTERNA / VARANDA"
+
+    termos_banheiro = ['BANHEIRO', 'BANHO', 'PRIVADA', 'LAVABO', 'VASON']
+    if any(term in t for term in termos_banheiro):
+        return "BANHEIRO"
+        
+    termos_quarto = ['QUARTO', 'CABECEIRA', 'DORMITÓRIO']
+    if any(term in t for term in termos_quarto):
+        return "QUARTO"
+
+    # --- GRUPO 3: CONTEXTOS DE AÇÃO E ESTRESSE ---
+
+    # Trânsito (Estresse de Deslocamento)
+    termos_transito = ['CARRO', 'TRANSITO', 'TRÂNSITO', 'DIRIGINDO', 'UBER', 'ÔNIBUS', 'METRÔ', 'ENGARRAFAMENTO', 'SEMAFORO', 'MOTO', 'VOLANTE']
+    if any(term in t for term in termos_transito):
+        return "TRÂNSITO / DESLOCAMENTO"
+
+    # Trabalho (Foco ou Estresse)
     termos_trabalho = ['CHEFE', 'REUNIÃO', 'PRAZO', 'CLIENTE', 'EMAIL', 'ESCRITÓRIO', 'TRABALHO', 'JOB', 'PROJETO', 'COMPUTADOR', 'LIGAÇÃO', 'EMPRESA']
     if any(term in t for term in termos_trabalho):
-        return "TRABALHO"
+        return "TRABALHO / ESCRITÓRIO"
+    
+    # Telas (Novo Gatilho Moderno)
+    termos_tela = ['CELULAR', 'INSTAGRAM', 'TIKTOK', 'ZAP', 'WHATSAPP', 'NOTÍCIA', 'JOGO', 'SCROLLANDO', 'INTERNET']
+    if any(term in t for term in termos_tela):
+        return "CELULAR / REDES SOCIAIS"
 
-    # NÍVEL 5: ESTADOS EMOCIONAIS
+    # Espera/Ocio
+    termos_espera = ['ESPERANDO', 'FILA', 'PONTO', 'AGUARDANDO', 'NADA', 'TÉDIO', 'TV', 'NETFLIX', 'SOFÁ']
+    if any(term in t for term in termos_espera):
+        return "MOMENTO DE ESPERA / TÉDIO"
+
+    # --- GRUPO 4: EMOÇÕES E ROTINA GERAL ---
+    
     termos_ansiedade = ['ANSIEDADE', 'NERVOSO', 'BRIGA', 'DISCUSSÃO', 'ESTRESSE', 'CHATEADO', 'TRISTE', 'RAIVA', 'CHORAR', 'PREOCUPADO', 'MEDO']
     if any(term in t for term in termos_ansiedade):
         return "PICO DE ANSIEDADE"
 
-    termos_tedio = ['TÉDIO', 'NADA', 'ESPERANDO', 'FILA', 'TV', 'NETFLIX', 'ASSISTINDO', 'CELULAR']
-    if any(term in t for term in termos_tedio):
-        return "TÉDIO / OCIOSIDADE"
-        
-    termos_positivos = ['FELIZ', 'ALEGRIA', 'BEM', 'TRANQUILO', 'PAZ']
-    if any(term in t for term in termos_positivos):
-        return "MOMENTO POSITIVO"
+    termos_retorno = ['CHEGUEI', 'CHEGANDO', 'SAI DO', 'VINDO', 'VOLTANDO', 'CASA', 'DESCANSO']
+    if any(term in t for term in termos_retorno):
+        return "ROTINA DE CASA (GERAL)"
 
     return "OUTROS"
 
@@ -162,10 +171,16 @@ def exibir_dashboard_visual(df_aluno):
     st.markdown("---")
     
     try:
+        # Colunas Mapeadas:
+        # Coluna C (Índice 2) -> Aonde Fuma Mais (Local/Ambiente)
+        # Coluna D (Índice 3) -> Gatilhos (O que estava fazendo)
+        # Coluna G (Índice 6) -> Emoções (O que sentiu)
+        
         # 1. GRÁFICO DE GATILHOS (Coluna D - Índice 3)
         if df_aluno.shape[1] > 3:
-            st.markdown("##### 1. Seus Maiores Gatilhos (Agrupados)")
+            st.markdown("##### 1. O que você estava fazendo? (Gatilhos)")
             df_temp = df_aluno.copy()
+            # Aplica a categorização granular aqui
             df_temp['Categoria_Gatilho'] = df_temp.iloc[:, 3].apply(categorizar_inteligente)
             
             dados_gatilho = df_temp['Categoria_Gatilho'].value_counts().reset_index()
@@ -180,13 +195,9 @@ def exibir_dashboard_visual(df_aluno):
 
         # 2. GRÁFICO DE EMOÇÕES (Coluna G - Índice 6)
         if df_aluno.shape[1] > 6:
-            st.markdown("##### 2. Top 5 Emoções (Sentimentos)")
+            st.markdown("##### 2. O que você sentiu? (Emoções)")
             df_temp = df_aluno.copy()
-            # Normaliza para maiúsculo para agrupar palavras iguais
             df_temp['Categoria_Emocao'] = df_temp.iloc[:, 6].apply(lambda x: str(x).upper().strip())
-            
-            # Opcional: Aplicar categorização para emoções também, se quiser agrupar "Triste" e "Chateado"
-            # df_temp['Categoria_Emocao'] = df_temp.iloc[:, 6].apply(categorizar_inteligente)
             
             top_emo = df_temp['Categoria_Emocao'].value_counts().head(5).reset_index()
             top_emo.columns = ['Emoção', 'Qtd']
@@ -199,9 +210,9 @@ def exibir_dashboard_visual(df_aluno):
 
         # 3. GRÁFICO DE AMBIENTE (Coluna C - Índice 2)
         if df_aluno.shape[1] > 2:
-            st.markdown("##### 3. Onde Você Fuma Mais? (Ambiente)")
+            st.markdown("##### 3. Onde você estava? (Ambiente)")
             df_temp = df_aluno.copy()
-            # Aplica a categorização inteligente que agora reconhece BALCÃO/COZINHA
+            # Aplica a mesma categorização granular (vai pegar Balcão, Cozinha, Varanda)
             df_temp['Categoria_Local'] = df_temp.iloc[:, 2].apply(categorizar_inteligente)
             
             top_loc = df_temp['Categoria_Local'].value_counts().reset_index()
@@ -264,7 +275,7 @@ if pagina == "Área do Aluno":
             if not gatilhos.empty:
                 exibir_dashboard_visual(gatilhos)
                 if gatilhos.shape[1] > 3:
-                    # Para PDF usa gatilhos agrupados se possível
+                    # Para PDF usa gatilhos agrupados
                     df_temp = gatilhos.copy()
                     df_temp['Cat'] = df_temp.iloc[:, 3].apply(categorizar_inteligente)
                     top_gatilhos_pdf = df_temp['Cat'].value_counts().head(3)
