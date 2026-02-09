@@ -84,19 +84,22 @@ def filtrar_aluno(df, email_aluno):
         return df[df[col_email] == email_aluno]
     return pd.DataFrame()
 
-# --- INTELIGÊNCIA DE DADOS ---
+# --- INTELIGÊNCIA DE DADOS (HÍBRIDA / "LÓGICA DA VERDADE") ---
 
-def categorizar_inteligente(texto):
-    """ GATILHOS (Col D) e LOCAIS (Col C) - Mantém lógica granular """
+def categorizar_geral_hibrida(texto):
+    """ 
+    Usada para GATILHOS (Col D) e LOCAIS (Col C).
+    Tenta categorizar. Se não conseguir, devolve o texto original.
+    """
     t = str(texto).upper().strip()
     
-    # 1. BIOLÓGICOS
+    # 1. BIOLÓGICOS / GATILHOS FORTES
     if any(k in t for k in ['ACORDEI', 'ACORDANDO', 'LEVANTANDO', 'CAMA', 'JEJUM', 'MANHÃ']): return "PRIMEIRO DO DIA (ACORDAR)"
     if any(k in t for k in ['CAFE', 'CAFÉ', 'CAPUCCINO', 'PADARIA', 'DESJEJUM']): return "GATILHO DO CAFÉ"
     if any(k in t for k in ['ALMOÇO', 'JANTAR', 'COMER', 'FOME', 'REFEIÇÃO', 'LANCHE', 'PIZZA']): return "PÓS-REFEIÇÃO"
     if any(k in t for k in ['CERVEJA', 'BEBER', 'BAR', 'FESTA', 'VINHO', 'HAPPY']): return "BEBIDA/SOCIAL"
 
-    # 2. LOCAIS
+    # 2. LOCAIS ESPECÍFICOS
     if any(k in t for k in ['COZINHA', 'BALCÃO', 'BALCAO', 'GELADEIRA', 'PIA', 'FOGÃO']): return "COZINHA / BALCÃO"
     if any(k in t for k in ['VARANDA', 'SACADA', 'QUINTAL', 'JARDIM', 'GARAGEM', 'RUA']): return "ÁREA EXTERNA / VARANDA"
     if any(k in t for k in ['BANHEIRO', 'BANHO', 'PRIVADA']): return "BANHEIRO"
@@ -112,28 +115,34 @@ def categorizar_inteligente(texto):
     
     if any(k in t for k in ['CHEGUEI', 'CHEGANDO', 'SAI DO', 'VINDO', 'CASA']): return "ROTINA DE CASA"
 
-    return "OUTROS"
+    # HÍBRIDO: Se não caiu em nada acima, retorna o texto original do usuário
+    if len(t) > 1:
+        return t
+    return "NÃO INFORMADO"
 
-def categorizar_motivos(texto):
-    """ Para coluna E: Motivos de Enfrentamento """
+def categorizar_motivos_hibrida(texto):
+    """ 
+    Para coluna E: Motivos de Enfrentamento
+    Lógica Híbrida: Categoriza os comuns, mantém os inéditos.
+    """
     t = str(texto).upper().strip()
+    
+    # Categorias Macro
     if any(k in t for k in ['VONTADE', 'DESEJO', 'FORTE', 'FISSURA', 'QUERIA']): return "VONTADE INCONTROLÁVEL"
     if any(k in t for k in ['HABITO', 'HÁBITO', 'AUTOMATICO', 'AUTOMÁTICO', 'NEM VI']): return "HÁBITO AUTOMÁTICO"
     if any(k in t for k in ['ANSIEDADE', 'NERVOSO', 'ESTRESSE', 'TENSO', 'BRIGA']): return "ALÍVIO DE ESTRESSE"
     if any(k in t for k in ['PRAZER', 'RELAXAR', 'GOSTO', 'BOM', 'PREMIO']): return "BUSCA POR PRAZER"
     if any(k in t for k in ['SOCIAL', 'AMIGOS', 'ACOMPANHAR', 'TURMA']): return "PRESSÃO SOCIAL"
     if any(k in t for k in ['TÉDIO', 'TEDIO', 'NADA', 'FAZER']): return "TÉDIO"
-    return "OUTROS"
-
-def categorizar_habitos(texto):
-    """ 
-    Para coluna H: Hábitos Associados
-    LÓGICA HÍBRIDA: Tenta categorizar os principais. 
-    Se não encontrar, retorna o TEXTO ORIGINAL (para não esconder dados).
-    """
-    t = str(texto).upper().strip()
     
-    # Categorias Macro
+    # Retorna original se não achar
+    if len(t) > 1:
+        return t
+    return "NÃO INFORMADO"
+
+def categorizar_habitos_hibrida(texto):
+    """ Para coluna H: Hábitos Associados (Já estava Híbrida) """
+    t = str(texto).upper().strip()
     if any(k in t for k in ['CAFE', 'CAFÉ', 'CAPUCCINO']): return "TOMAR CAFÉ"
     if any(k in t for k in ['ALCOOL', 'ÁLCOOL', 'CERVEJA', 'BEBIDA', 'DRINK', 'VINHO']): return "BEBER ÁLCOOL"
     if any(k in t for k in ['CELULAR', 'REDES', 'INSTA', 'TIKTOK', 'ZAP']): return "MEXER NO CELULAR"
@@ -142,26 +151,16 @@ def categorizar_habitos(texto):
     if any(k in t for k in ['COMER', 'DOCE', 'SOBREMESA', 'ALMOÇO', 'JANTAR']): return "COMER/SOBREMESA"
     if any(k in t for k in ['CONVERSAR', 'PAPO', 'FALAR']): return "CONVERSAR"
     
-    # Se não caiu em nenhuma categoria, mostra o que o usuário escreveu (truncado para caber)
-    if len(t) > 2:
-        return t
+    if len(t) > 1: return t
     return "NÃO INFORMADO"
 
-# --- FUNÇÃO DE DASHBOARD VISUAL (LAYOUT VERTICAL) ---
+# --- FUNÇÃO DE DASHBOARD VISUAL (VERTICAL) ---
 def exibir_dashboard_visual(df_aluno):
     st.subheader("📊 Painel da Autoconsciência")
     st.markdown("---")
     
     try:
-        # Colunas (Mapeamento):
-        # A (0) = Data/Hora
-        # C (2) = Onde (Local)
-        # D (3) = Gatilho
-        # E (4) = Motivo
-        # G (6) = Emoção
-        # H (7) = Hábitos
-
-        # 1. CIGARROS POR DIA DA SEMANA (LINHA DO TEMPO)
+        # 1. CIGARROS POR DIA DA SEMANA (Mantido Intacto)
         if df_aluno.shape[1] > 0:
             st.markdown("##### 1. Cronologia do Vício (Dias da Semana)")
             df_temp = df_aluno.copy()
@@ -185,12 +184,14 @@ def exibir_dashboard_visual(df_aluno):
             col_chart.plotly_chart(fig1, use_container_width=True)
             st.markdown("---")
 
-        # 2. PRINCIPAIS GATILHOS (Coluna D)
+        # 2. PRINCIPAIS GATILHOS (Coluna D) - Agora Híbrido
         if df_aluno.shape[1] > 3:
             st.markdown("##### 2. Principais Gatilhos")
             df_temp = df_aluno.copy()
-            df_temp['Cat'] = df_temp.iloc[:, 3].apply(categorizar_inteligente)
-            dados = df_temp['Cat'].value_counts().reset_index()
+            df_temp['Cat'] = df_temp.iloc[:, 3].apply(categorizar_geral_hibrida)
+            
+            # Pega Top 10 para não poluir se tiver muita "verdade" diferente
+            dados = df_temp['Cat'].value_counts().head(10).reset_index()
             dados.columns = ['Gatilho', 'Qtd']
             
             fig2 = px.pie(dados, names='Gatilho', values='Qtd', hole=0.5, 
@@ -200,12 +201,11 @@ def exibir_dashboard_visual(df_aluno):
             st.plotly_chart(fig2, use_container_width=True)
             st.markdown("---")
 
-        # 3. HÁBITOS ASSOCIADOS (Coluna H) - LOGICA HÍBRIDA
+        # 3. HÁBITOS ASSOCIADOS (Coluna H) - Mantido Híbrido
         if df_aluno.shape[1] > 7:
             st.markdown("##### 3. Hábitos Associados")
             df_temp = df_aluno.copy()
-            # Aqui usamos a nova função que preserva o texto original se não achar categoria
-            df_temp['Cat'] = df_temp.iloc[:, 7].apply(categorizar_habitos)
+            df_temp['Cat'] = df_temp.iloc[:, 7].apply(categorizar_habitos_hibrida)
             
             dados = df_temp['Cat'].value_counts().head(10).reset_index()
             dados.columns = ['Hábito', 'Qtd']
@@ -216,12 +216,13 @@ def exibir_dashboard_visual(df_aluno):
             st.plotly_chart(fig3, use_container_width=True)
             st.markdown("---")
 
-        # 4. MOTIVOS DE ENFRENTAMENTO (Coluna E)
+        # 4. MOTIVOS DE ENFRENTAMENTO (Coluna E) - Agora Híbrido
         if df_aluno.shape[1] > 4:
             st.markdown("##### 4. Motivos de Enfrentamento")
             df_temp = df_aluno.copy()
-            df_temp['Cat'] = df_temp.iloc[:, 4].apply(categorizar_motivos)
-            dados = df_temp['Cat'].value_counts().reset_index()
+            df_temp['Cat'] = df_temp.iloc[:, 4].apply(categorizar_motivos_hibrida)
+            
+            dados = df_temp['Cat'].value_counts().head(10).reset_index()
             dados.columns = ['Motivo', 'Qtd']
             
             fig4 = px.pie(dados, names='Motivo', values='Qtd', hole=0.5, 
@@ -231,12 +232,13 @@ def exibir_dashboard_visual(df_aluno):
             st.plotly_chart(fig4, use_container_width=True)
             st.markdown("---")
 
-        # 5. CANTINHOS FAVORITOS (Coluna C - Ambiente)
+        # 5. CANTINHOS FAVORITOS (Coluna C) - Agora Híbrido
         if df_aluno.shape[1] > 2:
             st.markdown("##### 5. Cantinhos Favoritos")
             df_temp = df_aluno.copy()
-            df_temp['Cat'] = df_temp.iloc[:, 2].apply(categorizar_inteligente)
-            dados = df_temp['Cat'].value_counts().reset_index()
+            df_temp['Cat'] = df_temp.iloc[:, 2].apply(categorizar_geral_hibrida)
+            
+            dados = df_temp['Cat'].value_counts().head(10).reset_index()
             dados.columns = ['Local', 'Qtd']
             
             fig5 = px.pie(dados, names='Local', values='Qtd', hole=0.5,
@@ -246,14 +248,14 @@ def exibir_dashboard_visual(df_aluno):
             st.plotly_chart(fig5, use_container_width=True)
             st.markdown("---")
         
-        # 6. EMOÇÕES PROPRÍCIAS (Coluna G) - RAW DATA (SEM AGRUPAMENTO)
+        # 6. EMOÇÕES PROPRÍCIAS (Coluna G) - Mantido TEXTO PURO (SEM AGRUPAMENTO INTELIGENTE)
         if df_aluno.shape[1] > 6:
             st.markdown("##### 6. Emoções Propícias ao Consumo")
             df_temp = df_aluno.copy()
-            # Removida categorização inteligente. Apenas Maiúsculo + Strip
+            # Apenas Maiúsculo + Strip para padronizar visualmente
             df_temp['Cat'] = df_temp.iloc[:, 6].apply(lambda x: str(x).upper().strip())
             
-            dados = df_temp['Cat'].value_counts().head(7).reset_index()
+            dados = df_temp['Cat'].value_counts().head(10).reset_index()
             dados.columns = ['Emoção', 'Qtd']
             
             fig6 = px.bar(dados, x='Qtd', y='Emoção', orientation='h',
@@ -301,7 +303,6 @@ if pagina == "Área do Aluno":
                 dados_aluno_pdf['idade'] = next((v for k, v in d.items() if "ANOS" in k.upper()), "N/A")
                 dados_aluno_pdf['local'] = next((v for k, v in d.items() if "CIDADE" in k.upper()), "N/A")
                 
-                # Layout Compacto
                 with st.container():
                     st.markdown(f"""
                     <div style="background-color: #f0fdf4; padding: 10px; border-radius: 5px; border: 1px solid #bbf7d0; margin-bottom: 20px;">
@@ -316,7 +317,7 @@ if pagina == "Área do Aluno":
                 exibir_dashboard_visual(gatilhos)
                 if gatilhos.shape[1] > 3:
                     df_temp = gatilhos.copy()
-                    df_temp['Cat'] = df_temp.iloc[:, 3].apply(categorizar_inteligente)
+                    df_temp['Cat'] = df_temp.iloc[:, 3].apply(categorizar_geral_hibrida)
                     top_gatilhos_pdf = df_temp['Cat'].value_counts().head(3)
             else:
                 st.info("Comece seu mapeamento para liberar o Painel de Consciência.")
