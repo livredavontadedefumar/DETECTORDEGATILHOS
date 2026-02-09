@@ -92,39 +92,33 @@ def categorizar_inteligente(texto):
     t = str(texto).upper().strip()
     
     # NÍVEL 1: ROTINA DE CASA E MOVIMENTO (Prioridade Máxima)
-    # Identifica transição (Cheguei, Saindo) e Casa
     termos_retorno = ['CHEGUEI', 'CHEGANDO', 'SAI DO', 'VINDO', 'VOLTANDO', 'CASA', 'DESCANSO', 'SOFÁ', 'BANHO', 'DORMIR', 'ACORDAR', 'CAMA', 'QUARTO', 'SALA']
     if any(term in t for term in termos_retorno):
         return "ROTINA / CASA"
 
     # NÍVEL 2: GATILHOS FISIOLÓGICOS E SOCIAIS FORTES
-    # Álcool e Festas
     termos_social = ['CERVEJA', 'BEBER', 'BAR', 'FESTA', 'AMIGOS', 'CHURRASCO', 'VINHO', 'HAPPY', 'BALADA']
     if any(term in t for term in termos_social):
         return "SOCIAL / ÁLCOOL"
 
-    # Café
     termos_cafe = ['CAFE', 'CAFÉ', 'CAPUCCINO', 'PADARIA', 'DESJEJUM', 'MANHÃ', 'EXPRESSO']
     if any(term in t for term in termos_cafe):
         return "MOMENTO DO CAFÉ"
 
-    # Refeições
     termos_comida = ['ALMOÇO', 'JANTAR', 'COMER', 'FOME', 'BARRIGA', 'REFEIÇÃO', 'LANCHE', 'RESTAURANTE', 'PIZZA']
     if any(term in t for term in termos_comida):
         return "PÓS-REFEIÇÃO"
 
     # NÍVEL 3: CONTEXTOS DE ESTRESSE EXTERNO
-    # Trânsito
     termos_transito = ['CARRO', 'TRANSITO', 'TRÂNSITO', 'DIRIGINDO', 'UBER', 'ÔNIBUS', 'METRÔ', 'ENGARRAFAMENTO', 'SEMAFORO', 'MOTO', 'RUA']
     if any(term in t for term in termos_transito):
         return "TRÂNSITO"
 
-    # Trabalho
     termos_trabalho = ['CHEFE', 'REUNIÃO', 'PRAZO', 'CLIENTE', 'EMAIL', 'ESCRITÓRIO', 'TRABALHO', 'JOB', 'PROJETO', 'COMPUTADOR', 'LIGAÇÃO', 'EMPRESA']
     if any(term in t for term in termos_trabalho):
         return "TRABALHO"
 
-    # NÍVEL 4: ESTADOS EMOCIONAIS (Se não tiver contexto físico)
+    # NÍVEL 4: ESTADOS EMOCIONAIS
     termos_ansiedade = ['ANSIEDADE', 'NERVOSO', 'BRIGA', 'DISCUSSÃO', 'ESTRESSE', 'CHATEADO', 'TRISTE', 'RAIVA', 'CHORAR', 'PREOCUPADO', 'MEDO']
     if any(term in t for term in termos_ansiedade):
         return "PICO DE ANSIEDADE"
@@ -145,17 +139,14 @@ def exibir_dashboard_visual(df_aluno):
     st.markdown("---")
     
     try:
-        # Colunas Mapeadas:
-        # Coluna C (Índice 2) -> Aonde Fuma Mais (Local/Ambiente)
-        # Coluna D (Índice 3) -> Gatilhos (O que estava fazendo)
-        # Coluna G (Índice 6) -> Emoções (O que sentiu)
-        
         # 1. GRÁFICO DE GATILHOS (Coluna D - Índice 3)
         if df_aluno.shape[1] > 3:
             st.markdown("##### 1. Seus Maiores Gatilhos (Agrupados)")
-            df_aluno['Categoria_Gatilho'] = df_aluno.iloc[:, 3].apply(categorizar_inteligente)
+            # Cria cópia para não afetar o dataframe original
+            df_temp = df_aluno.copy()
+            df_temp['Categoria_Gatilho'] = df_temp.iloc[:, 3].apply(categorizar_inteligente)
             
-            dados_gatilho = df_aluno['Categoria_Gatilho'].value_counts().reset_index()
+            dados_gatilho = df_temp['Categoria_Gatilho'].value_counts().reset_index()
             dados_gatilho.columns = ['Gatilho', 'Qtd']
             
             fig1 = px.pie(dados_gatilho, names='Gatilho', values='Qtd', hole=0.6, 
@@ -168,19 +159,14 @@ def exibir_dashboard_visual(df_aluno):
         # 2. GRÁFICO DE EMOÇÕES (Coluna G - Índice 6)
         if df_aluno.shape[1] > 6:
             st.markdown("##### 2. Top 5 Emoções (Sentimentos)")
-            # Aplica limpeza e categorização para garantir agrupamento
-            df_aluno['Categoria_Emocao'] = df_aluno.iloc[:, 6].apply(categorizar_inteligente)
+            df_temp = df_aluno.copy()
             
-            # Se a categorização retornar 'OUTROS' (porque a emoção não está na lista), usamos o texto original limpo
-            # Isso garante que emoções específicas do aluno apareçam
-            def tratar_emocao_final(row):
-                if "OUTROS" in row['Categoria_Emocao']:
-                    return str(row.iloc[6]).upper().strip() # Usa o original
-                return row['Categoria_Emocao'] # Usa a categoria agrupada (ex: PICO DE ANSIEDADE)
-
-            # Aplica a lógica combinada
-            dados_finais_emocao = df_aluno.apply(tratar_emocao_final, axis=1)
-            top_emo = dados_finais_emocao.value_counts().head(5).reset_index()
+            # Normaliza para maiúsculo
+            df_temp['Categoria_Emocao'] = df_temp.iloc[:, 6].apply(lambda x: str(x).upper().strip())
+            # Aplica categorização inteligente apenas para agrupar sinônimos se necessário
+            # (Aqui mantivemos o texto limpo direto, mas você pode aplicar a categorizar_inteligente se quiser agrupar 'Triste' com 'Chateado')
+            
+            top_emo = df_temp['Categoria_Emocao'].value_counts().head(5).reset_index()
             top_emo.columns = ['Emoção', 'Qtd']
             
             fig2 = px.bar(top_emo, x='Qtd', y='Emoção', orientation='h', 
@@ -192,10 +178,10 @@ def exibir_dashboard_visual(df_aluno):
         # 3. GRÁFICO DE AMBIENTE (Coluna C - Índice 2)
         if df_aluno.shape[1] > 2:
             st.markdown("##### 3. Onde Você Fuma Mais? (Ambiente)")
-            # Aplica a lógica cascata também para o ambiente
-            df_aluno['Categoria_Local'] = df_aluno.iloc[:, 2].apply(categorizar_inteligente)
+            df_temp = df_aluno.copy()
+            df_temp['Categoria_Local'] = df_temp.iloc[:, 2].apply(categorizar_inteligente)
             
-            top_loc = df_aluno['Categoria_Local'].value_counts().reset_index()
+            top_loc = df_temp['Categoria_Local'].value_counts().reset_index()
             top_loc.columns = ['Local', 'Qtd']
             
             fig3 = px.pie(top_loc, names='Local', values='Qtd', hole=0.6,
@@ -233,22 +219,27 @@ if pagina == "Área do Aluno":
         else:
             st.success(f"Logado: {email}")
             
+            # --- INICIALIZAÇÃO DE VARIÁVEIS (CORREÇÃO DO ERRO) ---
+            dados_aluno_pdf = {}
+            top_gatilhos_pdf = pd.Series(dtype=int)
+
             # --- SEÇÃO 1: IDENTIDADE (NO TOPO) ---
             st.markdown("---")
             st.subheader("📋 Identidade")
             if not perfil.empty:
                 d = perfil.tail(1).to_dict('records')[0]
+                # Busca segura dos dados
                 dados_aluno_pdf['nome'] = next((v for k, v in d.items() if "NOME" in k.upper()), "Usuário")
                 dados_aluno_pdf['idade'] = next((v for k, v in d.items() if "ANOS" in k.upper()), "N/A")
                 dados_aluno_pdf['local'] = next((v for k, v in d.items() if "CIDADE" in k.upper()), "N/A")
                 
-                # Exibe em formato de cartões lado a lado
+                # Exibe cards
                 c_id1, c_id2, c_id3 = st.columns(3)
                 c_id1.metric("Nome", dados_aluno_pdf['nome'])
                 c_id2.metric("Idade", f"{dados_aluno_pdf['idade']} anos")
                 c_id3.metric("Cidade", dados_aluno_pdf['local'])
             
-            # --- SEÇÃO 2: PAINEL DE CONSCIÊNCIA (ABAIXO, VERTICAL) ---
+            # --- SEÇÃO 2: PAINEL DE CONSCIÊNCIA (ABAIXO) ---
             if not gatilhos.empty:
                 exibir_dashboard_visual(gatilhos)
                 if gatilhos.shape[1] > 3:
@@ -265,7 +256,7 @@ if pagina == "Área do Aluno":
                 try:
                     genai.configure(api_key=st.secrets["gemini"]["api_key"])
                     model = genai.GenerativeModel('gemini-2.0-flash')
-                    col_indices = [3, 6] if gatilhos.shape[1] > 6 else [0] # Ajustado para Gatilhos(D/3) e Emoções(G/6)
+                    col_indices = [3, 6] if gatilhos.shape[1] > 6 else [0]
                     historico_leve = gatilhos.iloc[:, col_indices].tail(15).to_dict('records')
                     
                     prompt_ferro = f"""
@@ -332,7 +323,6 @@ elif pagina == "Área Administrativa":
             c1.metric("Total de Alunos", df_perfil_total.iloc[:,1].nunique() if not df_perfil_total.empty else 0)
             c2.metric("Mapeamentos Registrados", len(df_gatilhos_total))
             
-            # Dashboard Geral Inteligente
             exibir_dashboard_visual(df_gatilhos_total)
 
         st.subheader("🔍 Auditoria Individual")
