@@ -84,27 +84,26 @@ def filtrar_aluno(df, email_aluno):
         return df[df[col_email] == email_aluno]
     return pd.DataFrame()
 
-# --- CÉREBRO DE CATEGORIZAÇÃO (LÓGICA HIERÁRQUICA) ---
+# --- CÉREBRO DE CATEGORIZAÇÃO (LÓGICA HIERÁRQUICA 4 NÍVEIS) ---
 def categorizar_inteligente(texto):
     """
-    Função hierárquica para agrupar gatilhos e contextos.
-    A ordem dos 'if' define a prioridade da classificação.
+    Função hierárquica para agrupar gatilhos, locais e contextos.
     """
     t = str(texto).upper().strip()
     
-    # 1. ROTINA DE CASA E MOVIMENTO (Prioridade Máxima)
-    # Ex: "Cheguei do trabalho" -> Classifica como CASA/ROTINA, não TRABALHO.
-    termos_retorno = ['CHEGUEI', 'CHEGANDO', 'SAI DO', 'VINDO', 'VOLTANDO', 'CASA', 'DESCANSO', 'SOFÁ', 'BANHO', 'DORMIR', 'ACORDAR', 'CAMA']
+    # NÍVEL 1: ROTINA DE CASA E MOVIMENTO (Prioridade Máxima)
+    # Identifica transição (Cheguei, Saindo) e Casa
+    termos_retorno = ['CHEGUEI', 'CHEGANDO', 'SAI DO', 'VINDO', 'VOLTANDO', 'CASA', 'DESCANSO', 'SOFÁ', 'BANHO', 'DORMIR', 'ACORDAR', 'CAMA', 'QUARTO', 'SALA']
     if any(term in t for term in termos_retorno):
         return "ROTINA / CASA"
 
-    # 2. GATILHOS FISIOLÓGICOS E SOCIAIS FORTES
+    # NÍVEL 2: GATILHOS FISIOLÓGICOS E SOCIAIS FORTES
     # Álcool e Festas
     termos_social = ['CERVEJA', 'BEBER', 'BAR', 'FESTA', 'AMIGOS', 'CHURRASCO', 'VINHO', 'HAPPY', 'BALADA']
     if any(term in t for term in termos_social):
         return "SOCIAL / ÁLCOOL"
 
-    # Café (O clássico)
+    # Café
     termos_cafe = ['CAFE', 'CAFÉ', 'CAPUCCINO', 'PADARIA', 'DESJEJUM', 'MANHÃ', 'EXPRESSO']
     if any(term in t for term in termos_cafe):
         return "MOMENTO DO CAFÉ"
@@ -114,83 +113,97 @@ def categorizar_inteligente(texto):
     if any(term in t for term in termos_comida):
         return "PÓS-REFEIÇÃO"
 
-    # 3. CONTEXTOS DE ESTRESSE EXTERNO
+    # NÍVEL 3: CONTEXTOS DE ESTRESSE EXTERNO
     # Trânsito
-    termos_transito = ['CARRO', 'TRANSITO', 'TRÂNSITO', 'DIRIGINDO', 'UBER', 'ÔNIBUS', 'METRÔ', 'ENGARRAFAMENTO', 'SEMAFORO', 'MOTO']
+    termos_transito = ['CARRO', 'TRANSITO', 'TRÂNSITO', 'DIRIGINDO', 'UBER', 'ÔNIBUS', 'METRÔ', 'ENGARRAFAMENTO', 'SEMAFORO', 'MOTO', 'RUA']
     if any(term in t for term in termos_transito):
         return "TRÂNSITO"
 
-    # Trabalho (Só cai aqui se não foi 'Cheguei do trabalho')
-    termos_trabalho = ['CHEFE', 'REUNIÃO', 'PRAZO', 'CLIENTE', 'EMAIL', 'ESCRITÓRIO', 'TRABALHO', 'JOB', 'PROJETO', 'COMPUTADOR', 'LIGAÇÃO']
+    # Trabalho
+    termos_trabalho = ['CHEFE', 'REUNIÃO', 'PRAZO', 'CLIENTE', 'EMAIL', 'ESCRITÓRIO', 'TRABALHO', 'JOB', 'PROJETO', 'COMPUTADOR', 'LIGAÇÃO', 'EMPRESA']
     if any(term in t for term in termos_trabalho):
         return "TRABALHO"
 
-    # 4. ESTADOS EMOCIONAIS (Se não tiver contexto físico)
-    termos_ansiedade = ['ANSIEDADE', 'NERVOSO', 'BRIGA', 'DISCUSSÃO', 'ESTRESSE', 'CHATEADO', 'TRISTE', 'RAIVA', 'CHORAR', 'PREOCUPADO']
+    # NÍVEL 4: ESTADOS EMOCIONAIS (Se não tiver contexto físico)
+    termos_ansiedade = ['ANSIEDADE', 'NERVOSO', 'BRIGA', 'DISCUSSÃO', 'ESTRESSE', 'CHATEADO', 'TRISTE', 'RAIVA', 'CHORAR', 'PREOCUPADO', 'MEDO']
     if any(term in t for term in termos_ansiedade):
         return "PICO DE ANSIEDADE"
 
-    termos_tedio = ['TÉDIO', 'NADA', 'ESPERANDO', 'FILA', 'TV', 'NETFLIX', 'ASSISTINDO']
+    termos_tedio = ['TÉDIO', 'NADA', 'ESPERANDO', 'FILA', 'TV', 'NETFLIX', 'ASSISTINDO', 'CELULAR']
     if any(term in t for term in termos_tedio):
         return "TÉDIO / OCIOSIDADE"
+        
+    termos_positivos = ['FELIZ', 'ALEGRIA', 'BEM', 'TRANQUILO', 'PAZ']
+    if any(term in t for term in termos_positivos):
+        return "MOMENTO POSITIVO"
 
-    return "OUTROS"
+    return "OUTROS / NÃO IDENTIFICADO"
 
-# --- FUNÇÃO DE DASHBOARD VISUAL (COM INTELIGÊNCIA LÓGICA) ---
+# --- FUNÇÃO DE DASHBOARD VISUAL (VERTICAL) ---
 def exibir_dashboard_visual(df_aluno):
     st.subheader("📊 Painel de Autoconsciência")
+    st.markdown("---")
     
     try:
-        # Colunas (ajuste índices se necessário): 3=Gatilho, 7=Emoção, 8=Local
+        # Colunas Mapeadas:
+        # Coluna C (Índice 2) -> Aonde Fuma Mais (Local/Ambiente)
+        # Coluna D (Índice 3) -> Gatilhos (O que estava fazendo)
+        # Coluna G (Índice 6) -> Emoções (O que sentiu)
+        
+        # 1. GRÁFICO DE GATILHOS (Coluna D - Índice 3)
         if df_aluno.shape[1] > 3:
-            # Aplica a inteligência na coluna de Gatilhos
+            st.markdown("##### 1. Seus Maiores Gatilhos (Agrupados)")
             df_aluno['Categoria_Gatilho'] = df_aluno.iloc[:, 3].apply(categorizar_inteligente)
             
-            c1, c2, c3 = st.columns(3)
+            dados_gatilho = df_aluno['Categoria_Gatilho'].value_counts().reset_index()
+            dados_gatilho.columns = ['Gatilho', 'Qtd']
             
-            with c1:
-                # Gráfico de GATILHOS AGRUPADOS
-                dados_gatilho = df_aluno['Categoria_Gatilho'].value_counts().reset_index()
-                dados_gatilho.columns = ['Gatilho', 'Qtd']
-                
-                fig1 = px.pie(dados_gatilho, names='Gatilho', values='Qtd', hole=0.6, 
-                             title="Gatilhos (Agrupados)", 
-                             color_discrete_sequence=px.colors.qualitative.Prism)
-                fig1.update_layout(showlegend=False, margin=dict(t=40, b=0, l=0, r=0))
-                fig1.update_traces(textposition='inside', textinfo='percent+label')
-                st.plotly_chart(fig1, use_container_width=True)
-            
-            with c2:
-                # Gráfico de EMOÇÕES (Top 5)
-                if df_aluno.shape[1] > 7:
-                    # Normaliza texto das emoções
-                    raw_emo = df_aluno.iloc[:, 7].astype(str).str.upper().str.strip()
-                    top_emo = raw_emo.value_counts().head(5).reset_index()
-                    top_emo.columns = ['Emoção', 'Qtd']
-                    
-                    fig2 = px.bar(top_emo, x='Qtd', y='Emoção', orientation='h', 
-                                 title="Top 5 Emoções", 
-                                 color='Qtd', color_continuous_scale='Reds')
-                    fig2.update_layout(yaxis=dict(autorange="reversed"))
-                    st.plotly_chart(fig2, use_container_width=True)
+            fig1 = px.pie(dados_gatilho, names='Gatilho', values='Qtd', hole=0.6, 
+                         color_discrete_sequence=px.colors.sequential.Teal)
+            fig1.update_layout(showlegend=True, legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5))
+            fig1.update_traces(textposition='inside', textinfo='percent+label')
+            st.plotly_chart(fig1, use_container_width=True)
+            st.markdown("---")
 
-            with c3:
-                # Gráfico de AMBIENTE CRÍTICO (Usando a Coluna 8 se existir)
-                if df_aluno.shape[1] > 8: 
-                    # Aplica limpeza básica no ambiente
-                    raw_loc = df_aluno.iloc[:, 8].astype(str).str.upper().str.strip()
-                    top_loc = raw_loc.value_counts().head(5).reset_index()
-                    top_loc.columns = ['Local', 'Qtd']
-                    
-                    fig3 = px.pie(top_loc, names='Local', values='Qtd', hole=0.6,
-                                 title="Onde Você Fuma Mais?",
-                                 color_discrete_sequence=px.colors.sequential.Blues)
-                    fig3.update_layout(showlegend=False, margin=dict(t=40, b=0, l=0, r=0))
-                    fig3.update_traces(textposition='inside', textinfo='percent+label')
-                    st.plotly_chart(fig3, use_container_width=True)
-                else:
-                    st.info("Local não mapeado.")
+        # 2. GRÁFICO DE EMOÇÕES (Coluna G - Índice 6)
+        if df_aluno.shape[1] > 6:
+            st.markdown("##### 2. Top 5 Emoções (Sentimentos)")
+            # Aplica limpeza e categorização para garantir agrupamento
+            df_aluno['Categoria_Emocao'] = df_aluno.iloc[:, 6].apply(categorizar_inteligente)
             
+            # Se a categorização retornar 'OUTROS' (porque a emoção não está na lista), usamos o texto original limpo
+            # Isso garante que emoções específicas do aluno apareçam
+            def tratar_emocao_final(row):
+                if "OUTROS" in row['Categoria_Emocao']:
+                    return str(row.iloc[6]).upper().strip() # Usa o original
+                return row['Categoria_Emocao'] # Usa a categoria agrupada (ex: PICO DE ANSIEDADE)
+
+            # Aplica a lógica combinada
+            dados_finais_emocao = df_aluno.apply(tratar_emocao_final, axis=1)
+            top_emo = dados_finais_emocao.value_counts().head(5).reset_index()
+            top_emo.columns = ['Emoção', 'Qtd']
+            
+            fig2 = px.bar(top_emo, x='Qtd', y='Emoção', orientation='h', 
+                         color='Qtd', color_continuous_scale='Reds')
+            fig2.update_layout(yaxis=dict(autorange="reversed"))
+            st.plotly_chart(fig2, use_container_width=True)
+            st.markdown("---")
+
+        # 3. GRÁFICO DE AMBIENTE (Coluna C - Índice 2)
+        if df_aluno.shape[1] > 2:
+            st.markdown("##### 3. Onde Você Fuma Mais? (Ambiente)")
+            # Aplica a lógica cascata também para o ambiente
+            df_aluno['Categoria_Local'] = df_aluno.iloc[:, 2].apply(categorizar_inteligente)
+            
+            top_loc = df_aluno['Categoria_Local'].value_counts().reset_index()
+            top_loc.columns = ['Local', 'Qtd']
+            
+            fig3 = px.pie(top_loc, names='Local', values='Qtd', hole=0.6,
+                         color_discrete_sequence=px.colors.sequential.Blues)
+            fig3.update_layout(showlegend=True, legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5))
+            fig3.update_traces(textposition='inside', textinfo='percent+label')
+            st.plotly_chart(fig3, use_container_width=True)
+
     except Exception as e:
         st.error(f"Erro ao gerar gráficos: {e}")
 
@@ -220,30 +233,30 @@ if pagina == "Área do Aluno":
         else:
             st.success(f"Logado: {email}")
             
+            # --- SEÇÃO 1: IDENTIDADE (NO TOPO) ---
             st.markdown("---")
-            col_perfil, col_info = st.columns([1, 2])
-            dados_aluno_pdf = {}
-            top_gatilhos_pdf = pd.Series(dtype=int)
+            st.subheader("📋 Identidade")
+            if not perfil.empty:
+                d = perfil.tail(1).to_dict('records')[0]
+                dados_aluno_pdf['nome'] = next((v for k, v in d.items() if "NOME" in k.upper()), "Usuário")
+                dados_aluno_pdf['idade'] = next((v for k, v in d.items() if "ANOS" in k.upper()), "N/A")
+                dados_aluno_pdf['local'] = next((v for k, v in d.items() if "CIDADE" in k.upper()), "N/A")
+                
+                # Exibe em formato de cartões lado a lado
+                c_id1, c_id2, c_id3 = st.columns(3)
+                c_id1.metric("Nome", dados_aluno_pdf['nome'])
+                c_id2.metric("Idade", f"{dados_aluno_pdf['idade']} anos")
+                c_id3.metric("Cidade", dados_aluno_pdf['local'])
+            
+            # --- SEÇÃO 2: PAINEL DE CONSCIÊNCIA (ABAIXO, VERTICAL) ---
+            if not gatilhos.empty:
+                exibir_dashboard_visual(gatilhos)
+                if gatilhos.shape[1] > 3:
+                    top_gatilhos_pdf = gatilhos.iloc[:, 3].value_counts().head(3)
+            else:
+                st.info("Comece seu mapeamento para liberar o Painel de Consciência.")
 
-            with col_perfil:
-                st.subheader("📋 Identidade")
-                if not perfil.empty:
-                    d = perfil.tail(1).to_dict('records')[0]
-                    dados_aluno_pdf['nome'] = next((v for k, v in d.items() if "NOME" in k.upper()), "Usuário")
-                    dados_aluno_pdf['idade'] = next((v for k, v in d.items() if "ANOS" in k.upper()), "N/A")
-                    dados_aluno_pdf['local'] = next((v for k, v in d.items() if "CIDADE" in k.upper()), "N/A")
-                    st.info(f"**NOME:** {dados_aluno_pdf['nome']}\n\n**IDADE:** {dados_aluno_pdf['idade']}\n\n**LOCAL:** {dados_aluno_pdf['local']}")
-
-            with col_info:
-                if not gatilhos.empty:
-                    # EXIBE O DASHBOARD INTELIGENTE
-                    exibir_dashboard_visual(gatilhos)
-                    if gatilhos.shape[1] > 3:
-                        # Para o PDF, usamos os dados agrupados se possível, ou brutos
-                        top_gatilhos_pdf = gatilhos.iloc[:, 3].value_counts().head(3)
-                else:
-                    st.write("Comece seu mapeamento para ver os gráficos.")
-
+            # --- SEÇÃO 3: MENTOR IA ---
             st.markdown("---")
             st.subheader("🧠 Inteligência Comportamental")
             st.write("Acione o Mentor IA para receber uma análise profunda baseada em Pavlov e Dopamina.")
@@ -252,12 +265,9 @@ if pagina == "Área do Aluno":
                 try:
                     genai.configure(api_key=st.secrets["gemini"]["api_key"])
                     model = genai.GenerativeModel('gemini-2.0-flash')
-                    
-                    # Seleciona colunas para enviar para IA
-                    col_indices = [3, 7] if gatilhos.shape[1] > 7 else [0]
+                    col_indices = [3, 6] if gatilhos.shape[1] > 6 else [0] # Ajustado para Gatilhos(D/3) e Emoções(G/6)
                     historico_leve = gatilhos.iloc[:, col_indices].tail(15).to_dict('records')
                     
-                    # PROMPT DE FERRO 2.0 (Mantido conforme solicitado)
                     prompt_ferro = f"""
                     Você é o Mentor IA do projeto 'Livre da Vontade de Fumar', porta-voz estrito da Metodologia Clayton Chalegre. 
                     Sua base é a Terapia Comportamental e o Descondicionamento de Pavlov.
@@ -340,7 +350,7 @@ elif pagina == "Área Administrativa":
                 try:
                     genai.configure(api_key=st.secrets["gemini"]["api_key"])
                     model = genai.GenerativeModel('gemini-2.0-flash')
-                    h_adm = g_adm.iloc[:, [3, 7]].tail(15).to_dict('records')
+                    h_adm = g_adm.iloc[:, [3, 6]].tail(15).to_dict('records')
                     prompt_adm = f"Analise como Mentor IA Clayton Chalegre: PERFIL {p_adm.tail(1).to_dict('records')} GATILHOS {h_adm}. Proibido sugerir vape/redução."
                     with st.spinner("Gerando auditoria..."):
                         resp = model.generate_content(prompt_adm)
