@@ -84,64 +84,71 @@ def filtrar_aluno(df, email_aluno):
         return df[df[col_email] == email_aluno]
     return pd.DataFrame()
 
-# --- INTELIGÊNCIA DE DADOS (HÍBRIDA / "LÓGICA DA VERDADE") ---
+# --- INTELIGÊNCIA DE DADOS (REFINADA) ---
 
-def categorizar_geral_hibrida(texto):
-    """ 
-    Usada para GATILHOS (Col D) e LOCAIS (Col C).
-    Tenta categorizar. Se não conseguir, devolve o texto original.
-    """
+def categorizar_gatilhos(texto):
+    """ (GRÁFICO 2) - GATILHOS (Coluna D) """
     t = str(texto).upper().strip()
-    
-    # 1. BIOLÓGICOS / GATILHOS FORTES
+    # Biológicos
     if any(k in t for k in ['ACORDEI', 'ACORDANDO', 'LEVANTANDO', 'CAMA', 'JEJUM', 'MANHÃ']): return "PRIMEIRO DO DIA (ACORDAR)"
     if any(k in t for k in ['CAFE', 'CAFÉ', 'CAPUCCINO', 'PADARIA', 'DESJEJUM']): return "GATILHO DO CAFÉ"
     if any(k in t for k in ['ALMOÇO', 'JANTAR', 'COMER', 'FOME', 'REFEIÇÃO', 'LANCHE', 'PIZZA']): return "PÓS-REFEIÇÃO"
     if any(k in t for k in ['CERVEJA', 'BEBER', 'BAR', 'FESTA', 'VINHO', 'HAPPY']): return "BEBIDA/SOCIAL"
-
-    # 2. LOCAIS ESPECÍFICOS
-    if any(k in t for k in ['COZINHA', 'BALCÃO', 'BALCAO', 'GELADEIRA', 'PIA', 'FOGÃO']): return "COZINHA / BALCÃO"
-    if any(k in t for k in ['VARANDA', 'SACADA', 'QUINTAL', 'JARDIM', 'GARAGEM', 'RUA']): return "ÁREA EXTERNA / VARANDA"
-    if any(k in t for k in ['BANHEIRO', 'BANHO', 'PRIVADA']): return "BANHEIRO"
-    if any(k in t for k in ['QUARTO', 'CABECEIRA', 'DORMITÓRIO']): return "QUARTO"
-    if any(k in t for k in ['SALA', 'SOFÁ', 'TV']): return "SALA DE ESTAR"
-
-    # 3. CONTEXTO
+    # Situacionais
+    if any(k in t for k in ['CHEFE', 'REUNIÃO', 'PRAZO', 'TRABALHO', 'ESCRITÓRIO', 'COMPUTADOR']): return "TRABALHO/FOCO"
     if any(k in t for k in ['CARRO', 'TRANSITO', 'TRÂNSITO', 'DIRIGINDO', 'UBER', 'VOLANTE']): return "TRÂNSITO"
-    if any(k in t for k in ['CHEFE', 'REUNIÃO', 'PRAZO', 'TRABALHO', 'ESCRITÓRIO', 'COMPUTADOR']): return "TRABALHO"
     if any(k in t for k in ['CELULAR', 'INSTAGRAM', 'TIKTOK', 'WHATSAPP', 'ZAP']): return "CELULAR/TELAS"
-    if any(k in t for k in ['ANSIEDADE', 'NERVOSO', 'ESTRESSE', 'BRIGA', 'RAIVA']): return "PICO DE ANSIEDADE"
-    if any(k in t for k in ['TÉDIO', 'NADA', 'ESPERANDO']): return "TÉDIO/OCIOSIDADE"
-    
     if any(k in t for k in ['CHEGUEI', 'CHEGANDO', 'SAI DO', 'VINDO', 'CASA']): return "ROTINA DE CASA"
-
-    # HÍBRIDO: Se não caiu em nada acima, retorna o texto original do usuário
-    if len(t) > 1:
-        return t
+    # Híbrido
+    if len(t) > 1: return t
     return "NÃO INFORMADO"
 
-def categorizar_motivos_hibrida(texto):
-    """ 
-    Para coluna E: Motivos de Enfrentamento
-    Lógica Híbrida: Categoriza os comuns, mantém os inéditos.
-    """
+def categorizar_locais(texto):
+    """ (GRÁFICO 5) - CANTINHOS FAVORITOS (Coluna C) - REFINADO """
     t = str(texto).upper().strip()
     
-    # Categorias Macro
-    if any(k in t for k in ['VONTADE', 'DESEJO', 'FORTE', 'FISSURA', 'QUERIA']): return "VONTADE INCONTROLÁVEL"
-    if any(k in t for k in ['HABITO', 'HÁBITO', 'AUTOMATICO', 'AUTOMÁTICO', 'NEM VI']): return "HÁBITO AUTOMÁTICO"
-    if any(k in t for k in ['ANSIEDADE', 'NERVOSO', 'ESTRESSE', 'TENSO', 'BRIGA']): return "ALÍVIO DE ESTRESSE"
-    if any(k in t for k in ['PRAZER', 'RELAXAR', 'GOSTO', 'BOM', 'PREMIO']): return "BUSCA POR PRAZER"
-    if any(k in t for k in ['SOCIAL', 'AMIGOS', 'ACOMPANHAR', 'TURMA']): return "PRESSÃO SOCIAL"
-    if any(k in t for k in ['TÉDIO', 'TEDIO', 'NADA', 'FAZER']): return "TÉDIO"
+    # Micro-Locais (Prioridade Alta)
+    if any(k in t for k in ['JANELA', 'VITRO', 'VENEZIANA']): return "NA JANELA"
+    if any(k in t for k in ['TANQUE', 'LAVANDERIA', 'ÁREA DE SERVIÇO', 'AREA DE SERVICO']): return "LAVANDERIA/TANQUE"
+    if any(k in t for k in ['COMPUTADOR', 'PC', 'NOTEBOOK', 'MESA DE TRABALHO', 'GAMER']): return "FRENTE AO PC"
+    if any(k in t for k in ['BALCÃO', 'BALCAO', 'PIA', 'FOGÃO', 'FOGAO']): return "BALCÃO DA COZINHA"
     
-    # Retorna original se não achar
-    if len(t) > 1:
-        return t
+    # Cômodos Padrão
+    if any(k in t for k in ['COZINHA', 'MESA']): return "COZINHA"
+    if any(k in t for k in ['VARANDA', 'SACADA', 'QUINTAL', 'JARDIM', 'GARAGEM', 'PORTAO', 'RUA']): return "ÁREA EXTERNA"
+    if any(k in t for k in ['BANHEIRO', 'BANHO', 'PRIVADA', 'VASO', 'CHUVEIRO']): return "BANHEIRO"
+    if any(k in t for k in ['QUARTO', 'CABECEIRA', 'CAMA']): return "QUARTO"
+    if any(k in t for k in ['SALA', 'SOFÁ', 'SOFA', 'POLTRONA', 'TV']): return "SALA DE ESTAR"
+    
+    # Deslocamento
+    if any(k in t for k in ['CARRO', 'MOTO', 'UBER', 'CAMINHAO', 'ESTACIONAMENTO']): return "CARRO/VEÍCULO"
+    if any(k in t for k in ['TRABALHO', 'ESCRITORIO', 'FIRMA']): return "NO TRABALHO"
+
+    # Híbrido: Se for algo muito específico (ex: "Casa da Sogra"), mostra o original
+    if len(t) > 1: return t
+    return "OUTROS"
+
+def categorizar_motivos(texto):
+    """ (GRÁFICO 4) - MOTIVOS (Coluna E) - PSICOLOGIA APLICADA """
+    t = str(texto).upper().strip()
+    
+    # Recompensa vs Alívio
+    if any(k in t for k in ['MERECIMENTO', 'MEREÇO', 'PREMIO', 'PRÊMIO', 'TRABALHEI', 'CANSAÇO', 'CANSADO', 'DIA LONGO']): return "RECOMPENSA / MERECIMENTO"
+    if any(k in t for k in ['ALIVIO', 'ALÍVIO', 'ACALMAR', 'RELAXAR', 'PAZ', 'RESPIRAR']): return "BUSCA POR ALÍVIO"
+    if any(k in t for k in ['VONTADE', 'DESEJO', 'FORTE', 'FISSURA', 'QUERIA', 'NECESSIDADE']): return "FISSURA QUÍMICA"
+    if any(k in t for k in ['HABITO', 'HÁBITO', 'AUTOMATICO', 'AUTOMÁTICO', 'NEM VI', 'ACOSTUMADO']): return "HÁBITO AUTOMÁTICO"
+    if any(k in t for k in ['ANSIEDADE', 'NERVOSO', 'ESTRESSE', 'TENSO', 'BRIGA', 'RAIVA', 'PROBLEMA']): return "GATILHO EMOCIONAL (ESTRESSE)"
+    if any(k in t for k in ['PRAZER', 'GOSTO', 'BOM', 'DELICIA']): return "BUSCA POR PRAZER"
+    if any(k in t for k in ['SOCIAL', 'AMIGOS', 'ACOMPANHAR', 'TURMA', 'CONVERSA']): return "SOCIALIZAÇÃO"
+    if any(k in t for k in ['TÉDIO', 'TEDIO', 'NADA', 'FAZER', 'ESPERA']): return "TÉDIO/PASSATEMPO"
+    if any(k in t for k in ['SOZINHO', 'OPORTUNIDADE', 'ESCONDIDO', 'NINGUEM']): return "OPORTUNIDADE/ISOLAMENTO"
+    
+    # Híbrido
+    if len(t) > 1: return t
     return "NÃO INFORMADO"
 
-def categorizar_habitos_hibrida(texto):
-    """ Para coluna H: Hábitos Associados (Já estava Híbrida) """
+def categorizar_habitos(texto):
+    """ (GRÁFICO 3) - HÁBITOS (Coluna H) """
     t = str(texto).upper().strip()
     if any(k in t for k in ['CAFE', 'CAFÉ', 'CAPUCCINO']): return "TOMAR CAFÉ"
     if any(k in t for k in ['ALCOOL', 'ÁLCOOL', 'CERVEJA', 'BEBIDA', 'DRINK', 'VINHO']): return "BEBER ÁLCOOL"
@@ -154,13 +161,15 @@ def categorizar_habitos_hibrida(texto):
     if len(t) > 1: return t
     return "NÃO INFORMADO"
 
-# --- FUNÇÃO DE DASHBOARD VISUAL (VERTICAL) ---
+# --- FUNÇÃO DE DASHBOARD VISUAL ---
 def exibir_dashboard_visual(df_aluno):
     st.subheader("📊 Painel da Autoconsciência")
     st.markdown("---")
     
     try:
-        # 1. CIGARROS POR DIA DA SEMANA (Mantido Intacto)
+        # Colunas (Mapeamento): A(0), C(2), D(3), E(4), G(6), H(7)
+
+        # 1. CIGARROS POR DIA DA SEMANA (Mantido)
         if df_aluno.shape[1] > 0:
             st.markdown("##### 1. Cronologia do Vício (Dias da Semana)")
             df_temp = df_aluno.copy()
@@ -173,93 +182,78 @@ def exibir_dashboard_visual(df_aluno):
             total_cigarros = len(df_temp)
             contagem_dias = df_temp['Dia_PT'].value_counts().reset_index()
             contagem_dias.columns = ['Dia', 'Qtd']
-            
             ordem_dias = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo']
             
             col_kpi, col_chart = st.columns([1, 3])
             col_kpi.metric("TOTAL DE CIGARROS", total_cigarros, delta="Mapeado até agora")
-            
-            fig1 = px.bar(contagem_dias, x='Dia', y='Qtd', category_orders={'Dia': ordem_dias},
-                         color='Qtd', color_continuous_scale='Greens')
+            fig1 = px.bar(contagem_dias, x='Dia', y='Qtd', category_orders={'Dia': ordem_dias}, color='Qtd', color_continuous_scale='Greens')
             col_chart.plotly_chart(fig1, use_container_width=True)
             st.markdown("---")
 
-        # 2. PRINCIPAIS GATILHOS (Coluna D) - Agora Híbrido
+        # 2. PRINCIPAIS GATILHOS (Coluna D)
         if df_aluno.shape[1] > 3:
             st.markdown("##### 2. Principais Gatilhos")
             df_temp = df_aluno.copy()
-            df_temp['Cat'] = df_temp.iloc[:, 3].apply(categorizar_geral_hibrida)
-            
-            # Pega Top 10 para não poluir se tiver muita "verdade" diferente
+            df_temp['Cat'] = df_temp.iloc[:, 3].apply(categorizar_gatilhos)
             dados = df_temp['Cat'].value_counts().head(10).reset_index()
             dados.columns = ['Gatilho', 'Qtd']
             
-            fig2 = px.pie(dados, names='Gatilho', values='Qtd', hole=0.5, 
-                         color_discrete_sequence=px.colors.sequential.Teal)
+            fig2 = px.pie(dados, names='Gatilho', values='Qtd', hole=0.5, color_discrete_sequence=px.colors.sequential.Teal)
             fig2.update_layout(showlegend=True) 
             fig2.update_traces(textposition='inside', textinfo='percent+label')
             st.plotly_chart(fig2, use_container_width=True)
             st.markdown("---")
 
-        # 3. HÁBITOS ASSOCIADOS (Coluna H) - Mantido Híbrido
+        # 3. HÁBITOS ASSOCIADOS (Coluna H)
         if df_aluno.shape[1] > 7:
             st.markdown("##### 3. Hábitos Associados")
             df_temp = df_aluno.copy()
-            df_temp['Cat'] = df_temp.iloc[:, 7].apply(categorizar_habitos_hibrida)
-            
+            df_temp['Cat'] = df_temp.iloc[:, 7].apply(categorizar_habitos)
             dados = df_temp['Cat'].value_counts().head(10).reset_index()
             dados.columns = ['Hábito', 'Qtd']
             
-            fig3 = px.bar(dados, x='Qtd', y='Hábito', orientation='h',
-                         color_discrete_sequence=['#2E8B57']) 
+            fig3 = px.bar(dados, x='Qtd', y='Hábito', orientation='h', color_discrete_sequence=['#2E8B57']) 
             fig3.update_layout(yaxis=dict(autorange="reversed"))
             st.plotly_chart(fig3, use_container_width=True)
             st.markdown("---")
 
-        # 4. MOTIVOS DE ENFRENTAMENTO (Coluna E) - Agora Híbrido
+        # 4. MOTIVOS (Coluna E) - REFINADO
         if df_aluno.shape[1] > 4:
             st.markdown("##### 4. Motivos de Enfrentamento")
             df_temp = df_aluno.copy()
-            df_temp['Cat'] = df_temp.iloc[:, 4].apply(categorizar_motivos_hibrida)
-            
+            df_temp['Cat'] = df_temp.iloc[:, 4].apply(categorizar_motivos)
             dados = df_temp['Cat'].value_counts().head(10).reset_index()
             dados.columns = ['Motivo', 'Qtd']
             
-            fig4 = px.pie(dados, names='Motivo', values='Qtd', hole=0.5, 
-                         color_discrete_sequence=px.colors.sequential.OrRd)
+            fig4 = px.pie(dados, names='Motivo', values='Qtd', hole=0.5, color_discrete_sequence=px.colors.sequential.OrRd)
             fig4.update_layout(showlegend=True)
             fig4.update_traces(textposition='inside', textinfo='percent+label')
             st.plotly_chart(fig4, use_container_width=True)
             st.markdown("---")
 
-        # 5. CANTINHOS FAVORITOS (Coluna C) - Agora Híbrido
+        # 5. CANTINHOS FAVORITOS (Coluna C) - REFINADO
         if df_aluno.shape[1] > 2:
             st.markdown("##### 5. Cantinhos Favoritos")
             df_temp = df_aluno.copy()
-            df_temp['Cat'] = df_temp.iloc[:, 2].apply(categorizar_geral_hibrida)
-            
+            df_temp['Cat'] = df_temp.iloc[:, 2].apply(categorizar_locais)
             dados = df_temp['Cat'].value_counts().head(10).reset_index()
             dados.columns = ['Local', 'Qtd']
             
-            fig5 = px.pie(dados, names='Local', values='Qtd', hole=0.5,
-                         color_discrete_sequence=px.colors.sequential.Blues)
+            fig5 = px.pie(dados, names='Local', values='Qtd', hole=0.5, color_discrete_sequence=px.colors.sequential.Blues)
             fig5.update_layout(showlegend=True)
             fig5.update_traces(textposition='inside', textinfo='percent+label')
             st.plotly_chart(fig5, use_container_width=True)
             st.markdown("---")
         
-        # 6. EMOÇÕES PROPRÍCIAS (Coluna G) - Mantido TEXTO PURO (SEM AGRUPAMENTO INTELIGENTE)
+        # 6. EMOÇÕES (Coluna G) - TEXTO PURO
         if df_aluno.shape[1] > 6:
             st.markdown("##### 6. Emoções Propícias ao Consumo")
             df_temp = df_aluno.copy()
-            # Apenas Maiúsculo + Strip para padronizar visualmente
             df_temp['Cat'] = df_temp.iloc[:, 6].apply(lambda x: str(x).upper().strip())
-            
             dados = df_temp['Cat'].value_counts().head(10).reset_index()
             dados.columns = ['Emoção', 'Qtd']
             
-            fig6 = px.bar(dados, x='Qtd', y='Emoção', orientation='h',
-                         color='Qtd', color_continuous_scale='Reds')
+            fig6 = px.bar(dados, x='Qtd', y='Emoção', orientation='h', color='Qtd', color_continuous_scale='Reds')
             fig6.update_layout(yaxis=dict(autorange="reversed"))
             st.plotly_chart(fig6, use_container_width=True)
 
@@ -296,7 +290,7 @@ if pagina == "Área do Aluno":
             dados_aluno_pdf = {}
             top_gatilhos_pdf = pd.Series(dtype=int)
 
-            # --- SEÇÃO IDENTIDADE COMPACTA ---
+            # --- SEÇÃO IDENTIDADE ---
             if not perfil.empty:
                 d = perfil.tail(1).to_dict('records')[0]
                 dados_aluno_pdf['nome'] = next((v for k, v in d.items() if "NOME" in k.upper()), "Usuário")
@@ -317,12 +311,12 @@ if pagina == "Área do Aluno":
                 exibir_dashboard_visual(gatilhos)
                 if gatilhos.shape[1] > 3:
                     df_temp = gatilhos.copy()
-                    df_temp['Cat'] = df_temp.iloc[:, 3].apply(categorizar_geral_hibrida)
+                    df_temp['Cat'] = df_temp.iloc[:, 3].apply(categorizar_gatilhos)
                     top_gatilhos_pdf = df_temp['Cat'].value_counts().head(3)
             else:
                 st.info("Comece seu mapeamento para liberar o Painel de Consciência.")
 
-            # --- SEÇÃO 3: MENTOR IA ---
+            # --- SEÇÃO MENTOR IA ---
             st.markdown("---")
             st.subheader("🧠 Inteligência Comportamental")
             st.write("Acione o Mentor IA para receber uma análise profunda baseada em Pavlov e Dopamina.")
