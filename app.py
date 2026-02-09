@@ -84,12 +84,10 @@ def filtrar_aluno(df, email_aluno):
         return df[df[col_email] == email_aluno]
     return pd.DataFrame()
 
-# --- INTEGRAÇÃO DE INTELIGÊNCIA DE DADOS ---
+# --- INTELIGÊNCIA DE DADOS (GRANULARIDADE) ---
 
 def categorizar_inteligente(texto):
-    """
-    Função Mestra para GATILHOS (Col D) e LOCAIS (Col C)
-    """
+    """ Mestra para GATILHOS (Col D) e LOCAIS (Col C) """
     t = str(texto).upper().strip()
     
     # 1. BIOLÓGICOS
@@ -117,62 +115,67 @@ def categorizar_inteligente(texto):
     return "OUTROS"
 
 def categorizar_motivos(texto):
-    """ Para coluna E: Motivos de Enfrentamento/Por que fumou? """
+    """ Para coluna E: Motivos de Enfrentamento """
     t = str(texto).upper().strip()
-    if any(k in t for k in ['VONTADE', 'DESEJO', 'FORTE', 'FISSURA']): return "VONTADE INCONTROLÁVEL"
+    if any(k in t for k in ['VONTADE', 'DESEJO', 'FORTE', 'FISSURA', 'QUERIA']): return "VONTADE INCONTROLÁVEL"
     if any(k in t for k in ['HABITO', 'HÁBITO', 'AUTOMATICO', 'AUTOMÁTICO', 'NEM VI']): return "HÁBITO AUTOMÁTICO"
-    if any(k in t for k in ['ANSIEDADE', 'NERVOSO', 'ESTRESSE', 'TENSO']): return "ALÍVIO DE ESTRESSE"
-    if any(k in t for k in ['PRAZER', 'RELAXAR', 'GOSTO', 'BOM']): return "BUSCA POR PRAZER"
-    if any(k in t for k in ['SOCIAL', 'AMIGOS', 'ACOMPANHAR']): return "PRESSÃO SOCIAL"
+    if any(k in t for k in ['ANSIEDADE', 'NERVOSO', 'ESTRESSE', 'TENSO', 'BRIGA']): return "ALÍVIO DE ESTRESSE"
+    if any(k in t for k in ['PRAZER', 'RELAXAR', 'GOSTO', 'BOM', 'PREMIO']): return "BUSCA POR PRAZER"
+    if any(k in t for k in ['SOCIAL', 'AMIGOS', 'ACOMPANHAR', 'TURMA']): return "PRESSÃO SOCIAL"
+    if any(k in t for k in ['TÉDIO', 'TEDIO', 'NADA', 'FAZER']): return "TÉDIO"
     return "OUTROS"
 
 def categorizar_habitos(texto):
     """ Para coluna H: Hábitos Associados """
     t = str(texto).upper().strip()
     if any(k in t for k in ['CAFE', 'CAFÉ']): return "TOMAR CAFÉ"
-    if any(k in t for k in ['ALCOOL', 'ÁLCOOL', 'CERVEJA', 'BEBIDA']): return "BEBER ÁLCOOL"
-    if any(k in t for k in ['CELULAR', 'REDES', 'INSTA']): return "MEXER NO CELULAR"
+    if any(k in t for k in ['ALCOOL', 'ÁLCOOL', 'CERVEJA', 'BEBIDA', 'DRINK']): return "BEBER ÁLCOOL"
+    if any(k in t for k in ['CELULAR', 'REDES', 'INSTA', 'TIKTOK']): return "MEXER NO CELULAR"
     if any(k in t for k in ['DIRIGIR', 'CARRO', 'VOLANTE']): return "DIRIGIR"
-    if any(k in t for k in ['TRABALHAR', 'PC', 'NOTEBOOK']): return "TRABALHAR"
-    if any(k in t for k in ['COMER', 'DOCE', 'SOBREMESA']): return "COMER"
-    if any(k in t for k in ['CONVERSAR', 'PAPO']): return "CONVERSAR"
+    if any(k in t for k in ['TRABALHAR', 'PC', 'NOTEBOOK', 'EMAIL']): return "TRABALHAR"
+    if any(k in t for k in ['COMER', 'DOCE', 'SOBREMESA', 'ALMOÇO']): return "COMER"
+    if any(k in t for k in ['CONVERSAR', 'PAPO', 'FALAR']): return "CONVERSAR"
     return "OUTROS/NENHUM"
 
-# --- FUNÇÃO DE DASHBOARD VISUAL (LAYOUT NOVO) ---
+def categorizar_emocoes(texto):
+    """ Para coluna G: Emoções (Granular) """
+    t = str(texto).upper().strip()
+    if any(k in t for k in ['ANSIEDADE', 'ANSIOSO', 'NERVOSO', 'TENSO', 'PREOCUPADO', 'MEDO']): return "ANSIEDADE/TENSÃO"
+    if any(k in t for k in ['TRISTE', 'DEPRIMIDO', 'CHATEADO', 'BAIXO', 'DEPRE']): return "TRISTEZA/DESÂNIMO"
+    if any(k in t for k in ['RAIVA', 'ODIO', 'ÓDIO', 'FURIOSO', 'IRRITADO', 'PUTO']): return "RAIVA/IRRITAÇÃO"
+    if any(k in t for k in ['FELIZ', 'ALEGRE', 'BEM', 'OTIMO', 'ÓTIMO', 'ANIMADO']): return "FELICIDADE/EUFORIA"
+    if any(k in t for k in ['TEDIO', 'TÉDIO', 'ENTEDIADO', 'ATOA']): return "TÉDIO"
+    if any(k in t for k in ['CULPA', 'ARREPENDIDO', 'VERGONHA']): return "CULPA"
+    return "OUTROS"
+
+# --- FUNÇÃO DE DASHBOARD VISUAL (LAYOUT VERTICAL) ---
 def exibir_dashboard_visual(df_aluno):
     st.subheader("📊 Painel da Autoconsciência")
     st.markdown("---")
     
     try:
-        # Colunas (Baseado no seu pedido):
+        # Colunas (Mapeamento):
         # A (0) = Data/Hora
-        # C (2) = Onde (Local) -> GRÁFICO 5
-        # D (3) = O que fazia (Gatilho) -> GRÁFICO 2
-        # E (4) = Motivo -> GRÁFICO 4
-        # G (6) = Emoção -> GRÁFICO 6
-        # H (7) = Hábitos -> GRÁFICO 3
+        # C (2) = Onde (Local)
+        # D (3) = Gatilho
+        # E (4) = Motivo
+        # G (6) = Emoção
+        # H (7) = Hábitos
 
         # 1. CIGARROS POR DIA DA SEMANA (LINHA DO TEMPO)
         if df_aluno.shape[1] > 0:
             st.markdown("##### 1. Cronologia do Vício (Dias da Semana)")
             df_temp = df_aluno.copy()
-            # Converte coluna A para data
             df_temp['Data'] = pd.to_datetime(df_temp.iloc[:, 0], dayfirst=True, errors='coerce')
             df_temp['Dia_Semana'] = df_temp['Data'].dt.day_name()
             
-            # Tradução dos dias
-            mapa_dias = {
-                'Monday': 'Segunda', 'Tuesday': 'Terça', 'Wednesday': 'Quarta',
-                'Thursday': 'Quinta', 'Friday': 'Sexta', 'Saturday': 'Sábado', 'Sunday': 'Domingo'
-            }
+            mapa_dias = {'Monday': 'Segunda', 'Tuesday': 'Terça', 'Wednesday': 'Quarta', 'Thursday': 'Quinta', 'Friday': 'Sexta', 'Saturday': 'Sábado', 'Sunday': 'Domingo'}
             df_temp['Dia_PT'] = df_temp['Dia_Semana'].map(mapa_dias)
             
-            # Contagem total e por dia
             total_cigarros = len(df_temp)
             contagem_dias = df_temp['Dia_PT'].value_counts().reset_index()
             contagem_dias.columns = ['Dia', 'Qtd']
             
-            # Ordenar dias corretamente
             ordem_dias = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo']
             
             col_kpi, col_chart = st.columns([1, 3])
@@ -183,78 +186,73 @@ def exibir_dashboard_visual(df_aluno):
             col_chart.plotly_chart(fig1, use_container_width=True)
             st.markdown("---")
 
-        c_row1_1, c_row1_2 = st.columns(2)
-        
         # 2. PRINCIPAIS GATILHOS (Coluna D)
-        with c_row1_1:
-            if df_aluno.shape[1] > 3:
-                st.markdown("##### 2. Principais Gatilhos")
-                df_temp = df_aluno.copy()
-                df_temp['Cat'] = df_temp.iloc[:, 3].apply(categorizar_inteligente)
-                dados = df_temp['Cat'].value_counts().reset_index()
-                dados.columns = ['Gatilho', 'Qtd']
-                
-                fig2 = px.pie(dados, names='Gatilho', values='Qtd', hole=0.5, 
-                             color_discrete_sequence=px.colors.sequential.Teal)
-                fig2.update_layout(showlegend=False, margin=dict(t=20, b=20, l=20, r=20))
-                fig2.update_traces(textposition='inside', textinfo='percent+label')
-                st.plotly_chart(fig2, use_container_width=True)
+        if df_aluno.shape[1] > 3:
+            st.markdown("##### 2. Principais Gatilhos")
+            df_temp = df_aluno.copy()
+            df_temp['Cat'] = df_temp.iloc[:, 3].apply(categorizar_inteligente)
+            dados = df_temp['Cat'].value_counts().reset_index()
+            dados.columns = ['Gatilho', 'Qtd']
+            
+            fig2 = px.pie(dados, names='Gatilho', values='Qtd', hole=0.5, 
+                         color_discrete_sequence=px.colors.sequential.Teal)
+            fig2.update_layout(showlegend=True) # Legenda ajuda no layout vertical
+            fig2.update_traces(textposition='inside', textinfo='percent+label')
+            st.plotly_chart(fig2, use_container_width=True)
+            st.markdown("---")
 
         # 3. HÁBITOS ASSOCIADOS (Coluna H)
-        with c_row1_2:
-            if df_aluno.shape[1] > 7:
-                st.markdown("##### 3. Hábitos Associados")
-                df_temp = df_aluno.copy()
-                df_temp['Cat'] = df_temp.iloc[:, 7].apply(categorizar_habitos)
-                dados = df_temp['Cat'].value_counts().head(5).reset_index()
-                dados.columns = ['Hábito', 'Qtd']
-                
-                fig3 = px.bar(dados, x='Qtd', y='Hábito', orientation='h',
-                             color_discrete_sequence=['#2E8B57']) # Verde escuro
-                fig3.update_layout(yaxis=dict(autorange="reversed"))
-                st.plotly_chart(fig3, use_container_width=True)
-
-        st.markdown("---")
-        c_row2_1, c_row2_2 = st.columns(2)
+        if df_aluno.shape[1] > 7:
+            st.markdown("##### 3. Hábitos Associados")
+            df_temp = df_aluno.copy()
+            df_temp['Cat'] = df_temp.iloc[:, 7].apply(categorizar_habitos)
+            dados = df_temp['Cat'].value_counts().head(5).reset_index()
+            dados.columns = ['Hábito', 'Qtd']
+            
+            fig3 = px.bar(dados, x='Qtd', y='Hábito', orientation='h',
+                         color_discrete_sequence=['#2E8B57']) 
+            fig3.update_layout(yaxis=dict(autorange="reversed"))
+            st.plotly_chart(fig3, use_container_width=True)
+            st.markdown("---")
 
         # 4. MOTIVOS DE ENFRENTAMENTO (Coluna E)
-        with c_row2_1:
-            if df_aluno.shape[1] > 4:
-                st.markdown("##### 4. Motivos (O 'Porquê')")
-                df_temp = df_aluno.copy()
-                df_temp['Cat'] = df_temp.iloc[:, 4].apply(categorizar_motivos)
-                dados = df_temp['Cat'].value_counts().reset_index()
-                dados.columns = ['Motivo', 'Qtd']
-                
-                fig4 = px.pie(dados, names='Motivo', values='Qtd', hole=0.5, 
-                             color_discrete_sequence=px.colors.sequential.OrRd)
-                fig4.update_layout(showlegend=False)
-                fig4.update_traces(textposition='inside', textinfo='percent+label')
-                st.plotly_chart(fig4, use_container_width=True)
+        if df_aluno.shape[1] > 4:
+            st.markdown("##### 4. Motivos de Enfrentamento")
+            df_temp = df_aluno.copy()
+            df_temp['Cat'] = df_temp.iloc[:, 4].apply(categorizar_motivos)
+            dados = df_temp['Cat'].value_counts().reset_index()
+            dados.columns = ['Motivo', 'Qtd']
+            
+            fig4 = px.pie(dados, names='Motivo', values='Qtd', hole=0.5, 
+                         color_discrete_sequence=px.colors.sequential.OrRd)
+            fig4.update_layout(showlegend=True)
+            fig4.update_traces(textposition='inside', textinfo='percent+label')
+            st.plotly_chart(fig4, use_container_width=True)
+            st.markdown("---")
 
         # 5. CANTINHOS FAVORITOS (Coluna C - Ambiente)
-        with c_row2_2:
-            if df_aluno.shape[1] > 2:
-                st.markdown("##### 5. Cantinhos Favoritos")
-                df_temp = df_aluno.copy()
-                df_temp['Cat'] = df_temp.iloc[:, 2].apply(categorizar_inteligente)
-                dados = df_temp['Cat'].value_counts().reset_index()
-                dados.columns = ['Local', 'Qtd']
-                
-                fig5 = px.pie(dados, names='Local', values='Qtd', hole=0.5,
-                             color_discrete_sequence=px.colors.sequential.Blues)
-                fig5.update_layout(showlegend=False)
-                fig5.update_traces(textposition='inside', textinfo='percent+label')
-                st.plotly_chart(fig5, use_container_width=True)
-
-        st.markdown("---")
+        if df_aluno.shape[1] > 2:
+            st.markdown("##### 5. Cantinhos Favoritos")
+            df_temp = df_aluno.copy()
+            df_temp['Cat'] = df_temp.iloc[:, 2].apply(categorizar_inteligente)
+            dados = df_temp['Cat'].value_counts().reset_index()
+            dados.columns = ['Local', 'Qtd']
+            
+            fig5 = px.pie(dados, names='Local', values='Qtd', hole=0.5,
+                         color_discrete_sequence=px.colors.sequential.Blues)
+            fig5.update_layout(showlegend=True)
+            fig5.update_traces(textposition='inside', textinfo='percent+label')
+            st.plotly_chart(fig5, use_container_width=True)
+            st.markdown("---")
         
         # 6. EMOÇÕES PROPRÍCIAS (Coluna G)
         if df_aluno.shape[1] > 6:
             st.markdown("##### 6. Emoções Propícias ao Consumo")
             df_temp = df_aluno.copy()
-            df_temp['Cat'] = df_temp.iloc[:, 6].apply(lambda x: str(x).upper().strip())
-            dados = df_temp['Cat'].value_counts().head(7).reset_index()
+            # Aplica categorização granular de emoções
+            df_temp['Cat'] = df_temp.iloc[:, 6].apply(categorizar_emocoes)
+            
+            dados = df_temp['Cat'].value_counts().reset_index()
             dados.columns = ['Emoção', 'Qtd']
             
             fig6 = px.bar(dados, x='Qtd', y='Emoção', orientation='h',
@@ -305,14 +303,14 @@ if pagina == "Área do Aluno":
                 # Layout Compacto
                 with st.container():
                     st.markdown(f"""
-                    <div style="background-color: #f0fdf4; padding: 10px; border-radius: 5px; border: 1px solid #bbf7d0;">
+                    <div style="background-color: #f0fdf4; padding: 10px; border-radius: 5px; border: 1px solid #bbf7d0; margin-bottom: 20px;">
                         <span style="color: #166534; font-weight: bold;">👤 ALUNO:</span> {dados_aluno_pdf['nome']} | 
                         <span style="color: #166534; font-weight: bold;">🎂 IDADE:</span> {dados_aluno_pdf['idade']} | 
                         <span style="color: #166534; font-weight: bold;">📍 LOCAL:</span> {dados_aluno_pdf['local']}
                     </div>
                     """, unsafe_allow_html=True)
             
-            # --- PAINEL DE CONSCIÊNCIA (NOVO LAYOUT) ---
+            # --- PAINEL DE CONSCIÊNCIA (NOVO LAYOUT VERTICAL) ---
             if not gatilhos.empty:
                 exibir_dashboard_visual(gatilhos)
                 if gatilhos.shape[1] > 3:
