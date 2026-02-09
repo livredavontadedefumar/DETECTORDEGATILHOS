@@ -139,7 +139,7 @@ def categorizar_inteligente(texto):
         return "TRÂNSITO / DESLOCAMENTO"
 
     # Trabalho (Foco ou Estresse)
-    termos_trabalho = ['CHEFE', 'REUNIÃO', 'PRAZO', 'CLIENTE', 'EMAIL', 'ESCRITÓRIO', 'TRABALHO', 'JOB', 'PROJETO', 'COMPUTADOR', 'LIGAÇÃO', 'EMPRESA']
+    termos_trabalho = ['CHEFE', 'REUNIÃO', 'PRAZO', 'CLIENTE', 'EMAIL', 'ESCRITÓRIO', 'TRABALHO', 'JOB', 'PROJETO', 'COMPUTADOR', 'LIGAÇÃO', 'EMPRESA', 'NOTEBOOK', 'TABLET']
     if any(term in t for term in termos_trabalho):
         return "TRABALHO / ESCRITÓRIO"
     
@@ -149,7 +149,7 @@ def categorizar_inteligente(texto):
         return "CELULAR / REDES SOCIAIS"
 
     # Espera/Ocio
-    termos_espera = ['ESPERANDO', 'FILA', 'PONTO', 'AGUARDANDO', 'NADA', 'TÉDIO', 'TV', 'NETFLIX', 'SOFÁ']
+    termos_espera = ['ESPERANDO', 'FILA', 'PONTO', 'AGUARDANDO', 'NADA', 'TÉDIO', 'TV', 'NETFLIX', 'SOFÁ', 'ASSISTINDO']
     if any(term in t for term in termos_espera):
         return "MOMENTO DE ESPERA / TÉDIO"
 
