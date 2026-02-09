@@ -4,6 +4,7 @@ import gspread
 from google.oauth2.service_account import Credentials
 import google.generativeai as genai
 from fpdf import FPDF
+import plotly.express as px
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title="Mentor IA - Livre da Vontade", page_icon="🌿", layout="wide")
@@ -36,7 +37,7 @@ def carregar_todos_os_dados():
 
 df_perfil_total, df_gatilhos_total = carregar_todos_os_dados()
 
-# --- FUNÇÃO PARA GERAR PDF FORMATADO ---
+# --- FUNÇÃO DE PDF ---
 def gerar_pdf_formatado(dados_perfil, top_gatilhos, texto_diagnostico):
     pdf = FPDF()
     pdf.add_page()
@@ -72,7 +73,7 @@ def gerar_pdf_formatado(dados_perfil, top_gatilhos, texto_diagnostico):
     pdf.ln(15)
     pdf.set_font("Arial", "I", 8)
     pdf.set_text_color(150, 150, 150)
-    pdf.cell(0, 10, txt="Metodologia Clayton Chalegre - 'O estresse nao vai parar, mas sua reacao a ele pode mudar.'", ln=True, align="C")
+    pdf.cell(0, 10, txt="Metodologia Clayton Chalegre", ln=True, align="C")
     return pdf.output(dest="S").encode("latin-1")
 
 def filtrar_aluno(df, email_aluno):
@@ -82,6 +83,34 @@ def filtrar_aluno(df, email_aluno):
         df[col_email] = df[col_email].astype(str).str.strip().str.lower()
         return df[df[col_email] == email_aluno]
     return pd.DataFrame()
+
+# --- FUNÇÃO DE DASHBOARD VISUAL (SEM IA) ---
+def exibir_dashboard_visual(df_aluno):
+    st.subheader("📊 Painel de Autoconsciência")
+    
+    # Tenta gerar gráficos baseados nas colunas padrão (3=Gatilho, 7=Emoção)
+    try:
+        c1, c2 = st.columns(2)
+        with c1:
+            if df_aluno.shape[1] > 3:
+                # Gráfico de Pizza: Gatilhos
+                dados_gatilho = df_aluno.iloc[:, 3].value_counts().reset_index()
+                dados_gatilho.columns = ['Gatilho', 'Qtd']
+                fig1 = px.pie(dados_gatilho, names='Gatilho', values='Qtd', hole=0.5, 
+                             title="Seus Maiores Gatilhos", color_discrete_sequence=px.colors.sequential.Greens_r)
+                st.plotly_chart(fig1, use_container_width=True)
+            
+        with c2:
+            if df_aluno.shape[1] > 7:
+                # Gráfico de Barras: Emoções
+                dados_emocao = df_aluno.iloc[:, 7].value_counts().reset_index()
+                dados_emocao.columns = ['Emoção', 'Qtd']
+                fig2 = px.bar(dados_emocao, x='Qtd', y='Emoção', orientation='h', 
+                             title="Clima Emocional", color='Qtd', color_continuous_scale='Reds')
+                st.plotly_chart(fig2, use_container_width=True)
+            
+    except Exception as e:
+        st.info("Aguardando mais dados para gerar os gráficos visuais.")
 
 # --- MENU LATERAL ---
 st.sidebar.title("🌿 Menu de Navegação")
@@ -108,36 +137,47 @@ if pagina == "Área do Aluno":
                 st.rerun()
         else:
             st.success(f"Logado: {email}")
+            
+            # --- BLOCO DE PERFIL ---
             st.markdown("---")
-            col_perfil, col_gatilhos_alerta = st.columns([1, 1.2])
+            col_perfil, col_info = st.columns([1, 2])
             dados_aluno_pdf = {}
             top_gatilhos_pdf = pd.Series(dtype=int)
 
             with col_perfil:
-                st.subheader("📋 Identidade do Aluno")
+                st.subheader("📋 Identidade")
                 if not perfil.empty:
-                    dados = perfil.tail(1).to_dict('records')[0]
-                    dados_aluno_pdf['nome'] = next((v for k, v in dados.items() if "NOME" in k.upper()), "Usuário")
-                    dados_aluno_pdf['idade'] = next((v for k, v in dados.items() if "ANOS" in k.upper()), "N/A")
-                    dados_aluno_pdf['local'] = next((v for k, v in dados.items() if "CIDADE" in k.upper()), "N/A")
-                    st.info(f"**NOME:** {dados_aluno_pdf['nome']}\n\n**IDADE:** {dados_aluno_pdf['idade']} anos\n\n**LOCAL:** {dados_aluno_pdf['local']}")
+                    d = perfil.tail(1).to_dict('records')[0]
+                    # Busca flexível por colunas de nome/idade
+                    dados_aluno_pdf['nome'] = next((v for k, v in d.items() if "NOME" in k.upper()), "Usuário")
+                    dados_aluno_pdf['idade'] = next((v for k, v in d.items() if "ANOS" in k.upper()), "N/A")
+                    dados_aluno_pdf['local'] = next((v for k, v in d.items() if "CIDADE" in k.upper()), "N/A")
+                    st.info(f"**NOME:** {dados_aluno_pdf['nome']}\n\n**IDADE:** {dados_aluno_pdf['idade']}\n\n**LOCAL:** {dados_aluno_pdf['local']}")
 
-            with col_gatilhos_alerta:
-                st.subheader("⚠️ Alerta de Gatilhos Frequentes")
+            with col_info:
+                # Exibe Dashboard Visual (SEM GASTAR IA)
                 if not gatilhos.empty:
-                    top_gatilhos_pdf = gatilhos.iloc[:, 3].value_counts().head(3)
-                    cores = ["#FF4B4B", "#FF8B3D", "#FFC107"]
-                    for i, (g, qtd) in enumerate(top_gatilhos_pdf.items()):
-                        st.markdown(f'<div style="background-color:{cores[i]}; padding:12px; border-radius:10px; margin-bottom:8px; color:white; font-weight:bold;">{i+1}o: {g.upper()} ({qtd}x)</div>', unsafe_allow_html=True)
+                    exibir_dashboard_visual(gatilhos)
+                    if gatilhos.shape[1] > 3:
+                        top_gatilhos_pdf = gatilhos.iloc[:, 3].value_counts().head(3)
+                else:
+                    st.write("Comece seu mapeamento para ver os gráficos.")
 
+            # --- BLOCO DO MENTOR IA (INTELIGÊNCIA) ---
             st.markdown("---")
+            st.subheader("🧠 Inteligência Comportamental")
+            st.write("Acione o Mentor IA para receber uma análise profunda baseada em Pavlov e Dopamina.")
+
             if st.button("🚀 GERAR DIAGNÓSTICO DO MENTOR"):
                 try:
                     genai.configure(api_key=st.secrets["gemini"]["api_key"])
                     model = genai.GenerativeModel('gemini-2.0-flash')
-                    historico_leve = gatilhos.iloc[:, [3, 7]].tail(15).to_dict('records')
                     
-                    # --- PROMPT DE FERRO 2.0 (METODOLOGIA BLINDADA) ---
+                    # Seleciona colunas principais para a IA (Gatilho e Emoção) para economizar tokens
+                    col_indices = [3, 7] if gatilhos.shape[1] > 7 else [0]
+                    historico_leve = gatilhos.iloc[:, col_indices].tail(15).to_dict('records')
+                    
+                    # --- PROMPT DE FERRO 2.0 ---
                     prompt_ferro = f"""
                     Você é o Mentor IA do projeto 'Livre da Vontade de Fumar', porta-voz estrito da Metodologia Clayton Chalegre. 
                     Sua base é a Terapia Comportamental e o Descondicionamento de Pavlov.
@@ -145,32 +185,31 @@ if pagina == "Área do Aluno":
                     DADOS DO ALUNO: PERFIL: {perfil.tail(1).to_dict('records')} GATILHOS: {historico_leve}
 
                     REGRAS DE OURO (PROIBIÇÕES ABSOLUTAS):
-                    1. JAMAIS sugira Vape, cigarros eletrônicos ou qualquer substituto de nicotina.
-                    2. JAMAIS sugira ou ELOGIE a redução gradual. No #SEJALIVRE, reduzir cigarros não é o objetivo; o objetivo é o descondicionamento comportamental total. 
-                    3. Se os dados mostrarem que o aluno fumou menos, NÃO diga que isso é bom e NÃO parabenize por isso. Trate cada cigarro fumado como uma falha técnica de antecipação que precisa de ajuste no treinamento.
+                    1. JAMAIS sugira Vape, cigarros eletrônicos ou substitutos.
+                    2. JAMAIS elogie redução gradual. O objetivo é liberdade total.
+                    3. Trate cada cigarro fumado como uma falha técnica de antecipação, nunca como uma vitória parcial.
                     4. JAMAIS sugira substituir o cigarro por comida ou doces.
-                    5. JAMAIS recomende medicamentos.
 
                     DIRETRIZES TÉCNICAS:
-                    1. Explique o Erro de Previsão de Dopamina: O cérebro espera um prazer que o cigarro não entrega fisicamente; ele apenas alivia a abstinência que o próprio cigarro criou.
-                    2. Desmonte o "Sino de Pavlov": Identifique o gatilho automático baseado nos registros do aluno.
-                    3. Ordem de Antecipação: Dê uma instrução prática de ação para ser executada ANTES do gatilho acontecer.
+                    1. Explique o Erro de Previsão de Dopamina.
+                    2. Desmonte o "Sino de Pavlov" identificando o gatilho.
+                    3. Dê uma ordem de antecipação prática.
 
-                    ESTILO: Firme, técnico, sem rodeios, direto e transformador. Use a voz de Clayton Chalegre.
+                    ESTILO: Firme, técnico, transformador. Voz de Clayton Chalegre.
                     """
                     
-                    with st.spinner("O Mentor está analisando seu comportamento..."):
+                    with st.spinner("Analisando seus padrões comportamentais..."):
                         response = model.generate_content(prompt_ferro)
                         res_texto = response.text
                         
-                        # Filtro de Segurança (Guardrail)
+                        # Filtro de Segurança
                         proibidos = ["vape", "eletrônico", "moderado", "reduzir aos poucos", "comer doce"]
                         if any(t in res_texto.lower() for t in proibidos):
-                            st.error("Inconsistência detectada na análise. Por favor, tente gerar novamente.")
+                            st.error("Inconsistência detectada. Tente novamente.")
                         else:
                             st.session_state.ultimo_diagnostico = res_texto
                             st.info(st.session_state.ultimo_diagnostico)
-                except Exception as e: st.error(f"Erro ao gerar diagnóstico: {e}")
+                except Exception as e: st.error(f"Erro: {e}")
 
             if "ultimo_diagnostico" in st.session_state:
                 pdf_bytes = gerar_pdf_formatado(dados_aluno_pdf, top_gatilhos_pdf, st.session_state.ultimo_diagnostico)
@@ -193,52 +232,61 @@ elif pagina == "Área Administrativa":
                     st.rerun()
                 else: st.error("Acesso Negado.")
     else:
-        st.success("Bem-vindo, Clayton!")
+        st.success("Administrador Ativo")
         if st.button("Sair"):
             st.session_state.admin_logado = False
             st.rerun()
 
-        st.subheader("🔍 Auditoria de Aluno")
+        # Dashboard Administrativo Visual
+        st.markdown("---")
+        st.subheader("📊 Visão Geral da Turma")
+        if not df_gatilhos_total.empty:
+            c1, c2 = st.columns(2)
+            c1.metric("Total de Alunos", df_perfil_total.iloc[:,1].nunique() if not df_perfil_total.empty else 0)
+            c2.metric("Mapeamentos Registrados", len(df_gatilhos_total))
+            
+            # Gráfico Geral da Turma
+            if df_gatilhos_total.shape[1] > 3:
+                dados_gerais = df_gatilhos_total.iloc[:, 3].value_counts().reset_index().head(10)
+                dados_gerais.columns = ['Gatilho', 'Qtd']
+                fig_geral = px.bar(dados_gerais, x='Gatilho', y='Qtd', title="Top 10 Gatilhos da Turma", color='Qtd')
+                st.plotly_chart(fig_geral, use_container_width=True)
+
+        st.subheader("🔍 Auditoria Individual")
         emails_lista = df_perfil_total.iloc[:, 1].unique().tolist() if not df_perfil_total.empty else []
-        aluno_selecionado = st.selectbox("Selecione o aluno para analisar:", [""] + emails_lista)
+        aluno_selecionado = st.selectbox("Selecione o aluno:", [""] + emails_lista)
 
         if aluno_selecionado:
             p_adm = filtrar_aluno(df_perfil_total, aluno_selecionado)
             g_adm = filtrar_aluno(df_gatilhos_total, aluno_selecionado)
             
-            col_p, col_g = st.columns(2)
-            dados_adm_pdf = {}
-            top_g_adm_pdf = pd.Series(dtype=int)
-
-            with col_p:
-                if not p_adm.empty:
-                    d = p_adm.tail(1).to_dict('records')[0]
-                    dados_adm_pdf['nome'] = next((v for k, v in d.items() if "NOME" in k.upper()), "N/A")
-                    dados_adm_pdf['idade'] = next((v for k, v in d.items() if "ANOS" in k.upper()), "N/A")
-                    dados_adm_pdf['local'] = next((v for k, v in d.items() if "CIDADE" in k.upper()), "N/A")
-                    st.info(f"**Aluno:** {dados_adm_pdf['nome']}\n\n**Idade:** {dados_adm_pdf['idade']}\n\n**Local:** {dados_adm_pdf['local']}")
-
-            with col_g:
-                if not g_adm.empty:
-                    top_g_adm_pdf = g_adm.iloc[:, 3].value_counts().head(3)
-                    for i, (g, q) in enumerate(top_g_adm_pdf.items()):
-                        st.warning(f"{i+1}o Gatilho: {g.upper()} ({q}x)")
+            # Exibe o dashboard visual do aluno selecionado
+            if not g_adm.empty:
+                exibir_dashboard_visual(g_adm)
             
-            if st.button("🚀 GERAR DIAGNÓSTICO ADMINISTRATIVO"):
+            if st.button("🚀 GERAR DIAGNÓSTICO ADM"):
                 try:
                     genai.configure(api_key=st.secrets["gemini"]["api_key"])
                     model = genai.GenerativeModel('gemini-2.0-flash')
-                    h_adm = g_adm.iloc[:, [3, 7]].tail(15).to_dict('records')
                     
-                    prompt_adm = f"""Analise como Mentor IA Clayton Chalegre: PERFIL {p_adm.tail(1).to_dict('records')} GATILHOS {h_adm}. 
-                    REGRAS: Estritamente proibido sugerir vape ou elogiar redução de danos. Foco total em Pavlov e Antecipação Técnica."""
+                    indices = [3, 7] if g_adm.shape[1] > 7 else [0]
+                    h_adm = g_adm.iloc[:, indices].tail(15).to_dict('records')
                     
-                    with st.spinner("Gerando diagnóstico para auditoria..."):
+                    prompt_adm = f"Analise como Mentor IA Clayton Chalegre: PERFIL {p_adm.tail(1).to_dict('records')} GATILHOS {h_adm}. Proibido sugerir vape/redução."
+                    with st.spinner("Gerando auditoria..."):
                         resp = model.generate_content(prompt_adm)
                         st.session_state.diag_adm = resp.text
                         st.info(st.session_state.diag_adm)
                 except Exception as e: st.error(f"Erro: {e}")
-
+            
             if "diag_adm" in st.session_state:
-                pdf_adm = gerar_pdf_formatado(dados_adm_pdf, top_g_adm_pdf, st.session_state.diag_adm)
-                st.download_button("📥 Baixar PDF Administrativo", data=pdf_adm, file_name=f"Relatorio_ADM_{dados_adm_pdf.get('nome')}.pdf")
+                d_adm = p_adm.tail(1).to_dict('records')[0] if not p_adm.empty else {}
+                dados_adm_pdf = {
+                    'nome': next((v for k, v in d_adm.items() if "NOME" in k.upper()), "N/A"),
+                    'idade': next((v for k, v in d_adm.items() if "ANOS" in k.upper()), "N/A"),
+                    'local': next((v for k, v in d_adm.items() if "CIDADE" in k.upper()), "N/A")
+                }
+                top_g_adm = g_adm.iloc[:, 3].value_counts().head(3) if not g_adm.empty and g_adm.shape[1] > 3 else pd.Series()
+                
+                pdf_adm = gerar_pdf_formatado(dados_adm_pdf, top_g_adm, st.session_state.diag_adm)
+                st.download_button("📥 Baixar PDF Administrativo", data=pdf_adm, file_name=f"Relatorio_ADM.pdf")
