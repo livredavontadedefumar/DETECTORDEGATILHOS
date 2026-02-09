@@ -30,12 +30,12 @@ def carregar_todos_os_dados():
             ws_perfil = sh.worksheet("ENTREVISTA INICIAL")
             ws_gatilhos = sh.worksheet("MAPEAMENTO")
             
-            # Tenta carregar o LOG. Se não existir, avisa (mas não quebra)
+            # Tenta carregar o LOG
             try:
                 ws_log = sh.worksheet("LOG_DIAGNOSTICOS")
                 df_l = pd.DataFrame(ws_log.get_all_records())
             except:
-                df_l = pd.DataFrame(columns=["DATA", "EMAIL"]) # Vazio se der erro
+                df_l = pd.DataFrame(columns=["DATA", "EMAIL"]) 
             
             df_p = pd.DataFrame(ws_perfil.get_all_records())
             df_g = pd.DataFrame(ws_gatilhos.get_all_records())
@@ -44,12 +44,10 @@ def carregar_todos_os_dados():
             st.error(f"Erro ao ler abas: {e}")
     return pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
 
-# Carrega Perfil, Gatilhos e Log
 df_perfil_total, df_gatilhos_total, df_log_total = carregar_todos_os_dados()
 
-# --- FUNÇÃO DE REGISTRO DE USO (NOVO) ---
+# --- FUNÇÃO DE REGISTRO DE USO ---
 def registrar_uso_diagnostico(email_usuario):
-    """ Salva na aba LOG_DIAGNOSTICOS que o aluno usou um crédito """
     sh = conectar_planilha()
     if sh:
         try:
@@ -58,7 +56,7 @@ def registrar_uso_diagnostico(email_usuario):
             ws_log.append_row([data_hora, email_usuario])
             return True
         except:
-            st.warning("Aba 'LOG_DIAGNOSTICOS' não encontrada. Crie-a na planilha para salvar o histórico.")
+            st.warning("Aba 'LOG_DIAGNOSTICOS' não encontrada.")
             return False
     return False
 
@@ -109,10 +107,10 @@ def filtrar_aluno(df, email_aluno):
         return df[df[col_email] == email_aluno]
     return pd.DataFrame()
 
-# --- INTELIGÊNCIA DE DADOS ---
-# (Mantendo todas as funções de categorização que criamos anteriormente)
+# --- INTELIGÊNCIA DE DADOS (HÍBRIDA) ---
 
 def categorizar_geral_hibrida(texto):
+    """ GATILHOS (Col D) e LOCAIS (Col C) """
     t = str(texto).upper().strip()
     if any(k in t for k in ['ACORDEI', 'ACORDANDO', 'LEVANTANDO', 'CAMA', 'JEJUM', 'MANHÃ']): return "PRIMEIRO DO DIA (ACORDAR)"
     if any(k in t for k in ['CAFE', 'CAFÉ', 'CAPUCCINO', 'PADARIA', 'DESJEJUM']): return "GATILHO DO CAFÉ"
@@ -132,7 +130,8 @@ def categorizar_geral_hibrida(texto):
     if len(t) > 1: return t
     return "NÃO INFORMADO"
 
-def categorizar_motivos_hibrida(texto):
+def categorizar_enfrentamento_hibrida(texto):
+    """ Para coluna E: Enfrentamento de Tarefas """
     t = str(texto).upper().strip()
     if any(k in t for k in ['VONTADE', 'DESEJO', 'FORTE', 'FISSURA', 'QUERIA']): return "VONTADE INCONTROLÁVEL"
     if any(k in t for k in ['HABITO', 'HÁBITO', 'AUTOMATICO', 'AUTOMÁTICO', 'NEM VI']): return "HÁBITO AUTOMÁTICO"
@@ -140,6 +139,27 @@ def categorizar_motivos_hibrida(texto):
     if any(k in t for k in ['PRAZER', 'RELAXAR', 'GOSTO', 'BOM', 'PREMIO']): return "BUSCA POR PRAZER"
     if any(k in t for k in ['SOCIAL', 'AMIGOS', 'ACOMPANHAR', 'TURMA']): return "PRESSÃO SOCIAL"
     if any(k in t for k in ['TÉDIO', 'TEDIO', 'NADA', 'FAZER']): return "TÉDIO"
+    if len(t) > 1: return t
+    return "NÃO INFORMADO"
+
+def categorizar_motivos_principais_hibrida(texto):
+    """ 
+    Para coluna F (NOVO): Os Principais Motivos 
+    Foca na 'Busca Interna' ou 'Causa Raiz'
+    """
+    t = str(texto).upper().strip()
+    # Motivos Químicos
+    if any(k in t for k in ['VICIO', 'VÍCIO', 'NICOTINA', 'QUIMICO', 'QUÍMICO', 'CORPO']): return "DEPENDÊNCIA QUÍMICA"
+    if any(k in t for k in ['TREMEDEIRA', 'ABSTINENCIA', 'FALTA']): return "SINTOMAS DE ABSTINÊNCIA"
+    # Motivos Emocionais
+    if any(k in t for k in ['CALMA', 'PAZ', 'TRANQUILO', 'SOSSEGO', 'RELAX']): return "BUSCA POR PAZ/RELAXAMENTO"
+    if any(k in t for k in ['FUGA', 'ESQUECER', 'SUMIR', 'PROBLEMA']): return "FUGA DA REALIDADE"
+    if any(k in t for k in ['CORAGEM', 'FORÇA', 'ENFRENTAR']): return "BUSCA POR CORAGEM"
+    if any(k in t for k in ['FOCO', 'CONCENTRAR', 'ESTUDAR', 'CRIAR']): return "AUMENTO DE FOCO"
+    # Motivos Sociais
+    if any(k in t for k in ['ACEITACAO', 'GRUPO', 'JEITO', 'BONITO']): return "ACEITAÇÃO SOCIAL"
+    
+    # Se não cair em nada, mostra o texto (Híbrido)
     if len(t) > 1: return t
     return "NÃO INFORMADO"
 
@@ -163,7 +183,7 @@ def exibir_dashboard_visual(df_aluno):
     st.subheader("📊 Painel da Autoconsciência")
     st.markdown("---")
     
-    # Layouts para Mobile (Margens 50px)
+    # Layout Mobile (Margens 50px)
     pie_layout = dict(margin=dict(l=0, r=0, t=50, b=0), legend=dict(orientation="h", yanchor="top", y=-0.1, xanchor="center", x=0.5))
     bar_layout = dict(margin=dict(l=0, r=0, t=50, b=0), yaxis=dict(autorange="reversed"))
     
@@ -184,71 +204,93 @@ def exibir_dashboard_visual(df_aluno):
             
             col_kpi, col_chart = st.columns([1, 3])
             col_kpi.metric("TOTAL DE CIGARROS", total_cigarros)
-            fig1 = px.bar(contagem_dias, x='Dia', y='Qtd', category_orders={'Dia': ordem_dias}, color='Qtd', color_continuous_scale='Greens')
+            
+            # COR DE ALTO CONTRASTE (VERDE ESCURO FLORESTA)
+            fig1 = px.bar(contagem_dias, x='Dia', y='Qtd', category_orders={'Dia': ordem_dias}, 
+                          color='Qtd', color_continuous_scale=['#90EE90', '#006400']) # LightGreen to DarkGreen
             fig1.update_layout(margin=dict(l=0, r=0, t=50, b=0))
             col_chart.plotly_chart(fig1, use_container_width=True)
             st.markdown("---")
 
-        # 2. GATILHOS (Híbrido)
+        # 2. GATILHOS (Híbrido) - Coluna D
         if df_aluno.shape[1] > 3:
             st.markdown("##### 2. Principais Gatilhos")
             df_temp = df_aluno.copy()
             df_temp['Cat'] = df_temp.iloc[:, 3].apply(categorizar_geral_hibrida)
             dados = df_temp['Cat'].value_counts().head(10).reset_index()
             dados.columns = ['Gatilho', 'Qtd']
-            fig2 = px.pie(dados, names='Gatilho', values='Qtd', hole=0.5, color_discrete_sequence=px.colors.sequential.Teal)
+            # COR ALTO CONTRASTE (TEAL/ROXO VIBRANTE)
+            fig2 = px.pie(dados, names='Gatilho', values='Qtd', hole=0.5, color_discrete_sequence=px.colors.qualitative.Prism)
             fig2.update_layout(**pie_layout)
             fig2.update_traces(textposition='inside', textinfo='percent+label')
             st.plotly_chart(fig2, use_container_width=True)
             st.markdown("---")
 
-        # 3. HÁBITOS (Raio-X)
+        # 3. HÁBITOS (Raio-X) - Coluna H
         if df_aluno.shape[1] > 7:
             st.markdown("##### 3. Hábitos Associados")
             df_temp = df_aluno.copy()
             df_temp['Cat'] = df_temp.iloc[:, 7].apply(categorizar_habitos_raio_x)
             dados = df_temp['Cat'].value_counts().head(10).reset_index()
             dados.columns = ['Hábito', 'Qtd']
-            fig3 = px.bar(dados, x='Qtd', y='Hábito', orientation='h', text_auto=True, color_discrete_sequence=['#2E8B57']) 
+            # COR ALTO CONTRASTE (LARANJA QUEIMADO)
+            fig3 = px.bar(dados, x='Qtd', y='Hábito', orientation='h', text_auto=True, color_discrete_sequence=['#D2691E']) 
             fig3.update_layout(**bar_layout)
             st.plotly_chart(fig3, use_container_width=True)
             st.markdown("---")
 
-        # 4. MOTIVOS (Híbrido - Barras)
+        # 4. ENFRENTAMENTO DE TAREFAS (Atualizado) - Coluna E
         if df_aluno.shape[1] > 4:
-            st.markdown("##### 4. Motivos de Enfrentamento")
+            st.markdown("##### 4. Enfrentamento de Tarefas")
             df_temp = df_aluno.copy()
-            df_temp['Cat'] = df_temp.iloc[:, 4].apply(categorizar_motivos_hibrida)
+            df_temp['Cat'] = df_temp.iloc[:, 4].apply(categorizar_enfrentamento_hibrida)
             dados = df_temp['Cat'].value_counts().head(10).reset_index()
             dados.columns = ['Motivo', 'Qtd']
-            fig4 = px.bar(dados, x='Qtd', y='Motivo', orientation='h', text_auto=True, color='Qtd', color_continuous_scale='OrRd')
+            # COR ALTO CONTRASTE (AZUL REAL)
+            fig4 = px.bar(dados, x='Qtd', y='Motivo', orientation='h', text_auto=True, color='Qtd', color_continuous_scale=['#87CEEB', '#00008B'])
             fig4.update_layout(**bar_layout)
             st.plotly_chart(fig4, use_container_width=True)
             st.markdown("---")
 
-        # 5. LOCAIS (Híbrido)
+        # 5. LOCAIS (Híbrido) - Coluna C
         if df_aluno.shape[1] > 2:
             st.markdown("##### 5. Cantinhos Favoritos")
             df_temp = df_aluno.copy()
             df_temp['Cat'] = df_temp.iloc[:, 2].apply(categorizar_geral_hibrida)
             dados = df_temp['Cat'].value_counts().head(10).reset_index()
             dados.columns = ['Local', 'Qtd']
-            fig5 = px.pie(dados, names='Local', values='Qtd', hole=0.5, color_discrete_sequence=px.colors.sequential.Blues)
+            # COR ALTO CONTRASTE (AZUL MARINHO SÓLIDO)
+            fig5 = px.pie(dados, names='Local', values='Qtd', hole=0.5, color_discrete_sequence=px.colors.qualitative.Bold)
             fig5.update_layout(**pie_layout)
             fig5.update_traces(textposition='inside', textinfo='percent+label')
             st.plotly_chart(fig5, use_container_width=True)
             st.markdown("---")
         
-        # 6. EMOÇÕES (Texto Puro)
+        # 6. EMOÇÕES (Texto Puro) - Coluna G
         if df_aluno.shape[1] > 6:
             st.markdown("##### 6. Emoções Propícias ao Consumo")
             df_temp = df_aluno.copy()
             df_temp['Cat'] = df_temp.iloc[:, 6].apply(lambda x: str(x).upper().strip())
             dados = df_temp['Cat'].value_counts().head(10).reset_index()
             dados.columns = ['Emoção', 'Qtd']
-            fig6 = px.bar(dados, x='Qtd', y='Emoção', orientation='h', text_auto=True, color='Qtd', color_continuous_scale='Reds')
+            # COR ALTO CONTRASTE (VERMELHO SANGUE)
+            fig6 = px.bar(dados, x='Qtd', y='Emoção', orientation='h', text_auto=True, color='Qtd', color_continuous_scale=['#FA8072', '#8B0000'])
             fig6.update_layout(**bar_layout)
             st.plotly_chart(fig6, use_container_width=True)
+            st.markdown("---")
+
+        # 7. OS PRINCIPAIS MOTIVOS (NOVO) - Coluna F
+        if df_aluno.shape[1] > 5:
+            st.markdown("##### 7. Os Principais Motivos")
+            df_temp = df_aluno.copy()
+            df_temp['Cat'] = df_temp.iloc[:, 5].apply(categorizar_motivos_principais_hibrida)
+            dados = df_temp['Cat'].value_counts().head(10).reset_index()
+            dados.columns = ['Motivo Principal', 'Qtd']
+            
+            # COR ALTO CONTRASTE (ROXO PROFUNDO)
+            fig7 = px.bar(dados, x='Qtd', y='Motivo Principal', orientation='h', text_auto=True, color='Qtd', color_continuous_scale=['#9370DB', '#4B0082'])
+            fig7.update_layout(**bar_layout)
+            st.plotly_chart(fig7, use_container_width=True)
 
     except Exception as e:
         st.error(f"Erro ao gerar gráficos: {e}")
@@ -297,29 +339,24 @@ if pagina == "Área do Aluno":
                     </div>
                     """, unsafe_allow_html=True)
             
-            # --- CÁLCULO DE ELEGIBILIDADE (GAMIFICAÇÃO) ---
+            # --- CÁLCULO DE ELEGIBILIDADE ---
             dias_unicos = 0
             diagnosticos_usados = 0
             
             if not gatilhos.empty:
-                # 1. Conta dias registrados
                 df_datas = gatilhos.copy()
                 df_datas['Data_Limpa'] = pd.to_datetime(df_datas.iloc[:, 0], dayfirst=True, errors='coerce').dt.date
                 dias_unicos = df_datas['Data_Limpa'].nunique()
                 
-                # 2. Conta diagnósticos já usados (lendo do LOG)
                 if not df_log_total.empty:
-                    # Filtra log pelo email do usuario (coluna B = index 1)
                     usos = df_log_total[df_log_total.iloc[:, 1].astype(str).str.strip().str.lower() == email]
                     diagnosticos_usados = len(usos)
 
-            # Regras de Negócio:
-            # - A cada 7 dias de registro -> ganha direito a 2 diagnósticos
             ciclos_completos = dias_unicos // 7
             total_diagnosticos_permitidos = ciclos_completos * 2
             saldo_diagnosticos = total_diagnosticos_permitidos - diagnosticos_usados
             
-            # --- EXIBIÇÃO ---
+            # --- EXIBIÇÃO DASHBOARD ---
             if not gatilhos.empty:
                 exibir_dashboard_visual(gatilhos)
                 if gatilhos.shape[1] > 3:
@@ -332,29 +369,21 @@ if pagina == "Área do Aluno":
             st.markdown("---")
             st.subheader("🧠 Inteligência Comportamental")
             
-            # LÓGICA DE TRAVAMENTO DO BOTÃO
             pode_gerar = False
             msg_botao = "🚀 GERAR DIAGNÓSTICO DO MENTOR"
             
-            # CASO 1: Menos de 7 dias (Barra de Progresso Inicial)
             if dias_unicos < 7:
                 st.warning(f"🔒 Faltam {7 - dias_unicos} dias de registro para liberar seu primeiro diagnóstico.")
                 progresso = dias_unicos / 7
                 st.progress(progresso)
                 st.info(f"Dias registrados: {dias_unicos}/7")
-            
-            # CASO 2: Tem dias suficientes, mas acabou o saldo do ciclo
             elif saldo_diagnosticos <= 0:
                 dias_para_proximo = 7 - (dias_unicos % 7)
-                # Se for multiplo exato de 7 (ex: 7, 14) e saldo 0, precisa de mais 1 dia para começar a contar
                 if dias_para_proximo == 0 or dias_para_proximo == 7: dias_para_proximo = 7
-                
                 st.warning(f"🔒 Você usou seus diagnósticos deste ciclo. Registre mais {dias_para_proximo} dias para liberar novos.")
                 progresso_ciclo = (dias_unicos % 7) / 7
                 st.progress(progresso_ciclo)
                 st.info(f"Total de diagnósticos realizados: {diagnosticos_usados}")
-
-            # CASO 3: Tem saldo disponível
             else:
                 pode_gerar = True
                 if saldo_diagnosticos == 1:
@@ -364,7 +393,6 @@ if pagina == "Área do Aluno":
 
             if pode_gerar:
                 if st.button(msg_botao):
-                    # Registra o uso ANTES de gerar para garantir
                     sucesso_log = registrar_uso_diagnostico(email)
                     if sucesso_log:
                         try:
@@ -384,7 +412,7 @@ if pagina == "Área do Aluno":
                             with st.spinner("Analisando padrões..."):
                                 response = model.generate_content(prompt_ferro)
                                 st.session_state.ultimo_diagnostico = response.text
-                                st.rerun() # Recarrega a página para atualizar o saldo
+                                st.rerun()
                         except Exception as e: st.error(f"Erro: {e}")
                     else:
                         st.error("Erro ao registrar uso. Verifique se a aba LOG_DIAGNOSTICOS existe.")
@@ -422,6 +450,7 @@ elif pagina == "Área Administrativa":
             c1, c2 = st.columns(2)
             c1.metric("Total de Alunos", df_perfil_total.iloc[:,1].nunique() if not df_perfil_total.empty else 0)
             c2.metric("Mapeamentos Registrados", len(df_gatilhos_total))
+            
             exibir_dashboard_visual(df_gatilhos_total)
             
             st.markdown("---")
