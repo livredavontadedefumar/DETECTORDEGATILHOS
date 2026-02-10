@@ -10,7 +10,7 @@ from datetime import datetime
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(
     page_title="Madrinha-IA - MAPA COMPORTAMENTAL",
-    page_icon="logo.png", # Agora usa sua logo como ícone da aba
+    page_icon="logo.png", # Usa a logo da aba
     layout="wide",
 )
 
@@ -86,12 +86,12 @@ def registrar_uso_diagnostico(email_usuario):
 def gerar_pdf_formatado(dados_perfil, top_gatilhos, texto_diagnostico):
     pdf = FPDF()
     pdf.add_page()
-    # Tenta colocar a logo no PDF também (opcional, se der erro ele ignora)
+    # Tenta colocar a logo no PDF também
     try:
         pdf.image("logo.png", x=10, y=8, w=30)
-        pdf.set_y(40) # Desce o texto para não ficar em cima da logo
+        pdf.set_y(40) 
     except:
-        pass # Se não achar a logo pro PDF, segue sem ela
+        pass 
 
     pdf.set_font("Arial", "B", 18)
     pdf.set_text_color(46, 125, 50)
@@ -464,15 +464,18 @@ pagina = st.sidebar.radio("Ir para:", ["Área do Aluno", "Área Administrativa"]
 # --- ÁREA DO ALUNO ---
 if pagina == "Área do Aluno":
     # -------------------------------------------------------------
-    # Exibe a logo se o arquivo existir no github (logo.png)
-    # Se der erro, ele continua sem quebrar o app
+    # CABEÇALHO CORRIGIDO: MOSTRA LOGO E TEXTO SEMPRE
+    # -------------------------------------------------------------
     try:
         st.image("logo.png", width=120)
     except:
-        st.markdown("## 🧚‍♀️ Madrinha-IA")
+        st.markdown("## 🧚‍♀️") # Ícone de fallback se a logo falhar
+        
+    # Estes textos agora estão fora do 'try', então aparecem sempre!
+    st.markdown("# Madrinha-IA")
+    st.markdown("### MAPA COMPORTAMENTAL")
     # -------------------------------------------------------------
     
-    st.title("MAPA COMPORTAMENTAL")
     if "user_email" not in st.session_state:
         email_input = st.text_input("Digite seu e-mail cadastrado:").strip().lower()
         if st.button("Acessar Meus Dados"):
