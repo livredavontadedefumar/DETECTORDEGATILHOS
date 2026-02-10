@@ -10,6 +10,16 @@ from datetime import datetime
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title="Mentor IA - Livre da Vontade", page_icon="🌿", layout="wide")
 
+# --- CSS PARA REMOVER MENUS E RODAPÉ (VISUAL APP NATIVO) ---
+hide_st_style = """
+            <style>
+            #MainMenu {visibility: hidden;}
+            footer {visibility: hidden;}
+            header {visibility: hidden;}
+            </style>
+            """
+st.markdown(hide_st_style, unsafe_allow_html=True)
+
 # --- 1. CONEXÃO COM GOOGLE SHEETS ---
 def conectar_planilha():
     try:
@@ -143,23 +153,15 @@ def categorizar_enfrentamento_hibrida(texto):
     return "NÃO INFORMADO"
 
 def categorizar_motivos_principais_hibrida(texto):
-    """ 
-    Para coluna F (NOVO): Os Principais Motivos 
-    Foca na 'Busca Interna' ou 'Causa Raiz'
-    """
+    """ Para coluna F: Os Principais Motivos """
     t = str(texto).upper().strip()
-    # Motivos Químicos
     if any(k in t for k in ['VICIO', 'VÍCIO', 'NICOTINA', 'QUIMICO', 'QUÍMICO', 'CORPO']): return "DEPENDÊNCIA QUÍMICA"
     if any(k in t for k in ['TREMEDEIRA', 'ABSTINENCIA', 'FALTA']): return "SINTOMAS DE ABSTINÊNCIA"
-    # Motivos Emocionais
     if any(k in t for k in ['CALMA', 'PAZ', 'TRANQUILO', 'SOSSEGO', 'RELAX']): return "BUSCA POR PAZ/RELAXAMENTO"
     if any(k in t for k in ['FUGA', 'ESQUECER', 'SUMIR', 'PROBLEMA']): return "FUGA DA REALIDADE"
     if any(k in t for k in ['CORAGEM', 'FORÇA', 'ENFRENTAR']): return "BUSCA POR CORAGEM"
     if any(k in t for k in ['FOCO', 'CONCENTRAR', 'ESTUDAR', 'CRIAR']): return "AUMENTO DE FOCO"
-    # Motivos Sociais
     if any(k in t for k in ['ACEITACAO', 'GRUPO', 'JEITO', 'BONITO']): return "ACEITAÇÃO SOCIAL"
-    
-    # Se não cair em nada, mostra o texto (Híbrido)
     if len(t) > 1: return t
     return "NÃO INFORMADO"
 
@@ -183,7 +185,7 @@ def exibir_dashboard_visual(df_aluno):
     st.subheader("📊 Painel da Autoconsciência")
     st.markdown("---")
     
-    # Layout Mobile (Margens 50px)
+    # Layouts Mobile (Margens 50px)
     pie_layout = dict(margin=dict(l=0, r=0, t=50, b=0), legend=dict(orientation="h", yanchor="top", y=-0.1, xanchor="center", x=0.5))
     bar_layout = dict(margin=dict(l=0, r=0, t=50, b=0), yaxis=dict(autorange="reversed"))
     
@@ -204,10 +206,8 @@ def exibir_dashboard_visual(df_aluno):
             
             col_kpi, col_chart = st.columns([1, 3])
             col_kpi.metric("TOTAL DE CIGARROS", total_cigarros)
-            
-            # COR DE ALTO CONTRASTE (VERDE ESCURO FLORESTA)
             fig1 = px.bar(contagem_dias, x='Dia', y='Qtd', category_orders={'Dia': ordem_dias}, 
-                          color='Qtd', color_continuous_scale=['#90EE90', '#006400']) # LightGreen to DarkGreen
+                          color='Qtd', color_continuous_scale=['#90EE90', '#006400']) # High Contrast Green
             fig1.update_layout(margin=dict(l=0, r=0, t=50, b=0))
             col_chart.plotly_chart(fig1, use_container_width=True)
             st.markdown("---")
@@ -219,7 +219,6 @@ def exibir_dashboard_visual(df_aluno):
             df_temp['Cat'] = df_temp.iloc[:, 3].apply(categorizar_geral_hibrida)
             dados = df_temp['Cat'].value_counts().head(10).reset_index()
             dados.columns = ['Gatilho', 'Qtd']
-            # COR ALTO CONTRASTE (TEAL/ROXO VIBRANTE)
             fig2 = px.pie(dados, names='Gatilho', values='Qtd', hole=0.5, color_discrete_sequence=px.colors.qualitative.Prism)
             fig2.update_layout(**pie_layout)
             fig2.update_traces(textposition='inside', textinfo='percent+label')
@@ -233,8 +232,7 @@ def exibir_dashboard_visual(df_aluno):
             df_temp['Cat'] = df_temp.iloc[:, 7].apply(categorizar_habitos_raio_x)
             dados = df_temp['Cat'].value_counts().head(10).reset_index()
             dados.columns = ['Hábito', 'Qtd']
-            # COR ALTO CONTRASTE (LARANJA QUEIMADO)
-            fig3 = px.bar(dados, x='Qtd', y='Hábito', orientation='h', text_auto=True, color_discrete_sequence=['#D2691E']) 
+            fig3 = px.bar(dados, x='Qtd', y='Hábito', orientation='h', text_auto=True, color_discrete_sequence=['#D2691E']) # Chocolate/Orange
             fig3.update_layout(**bar_layout)
             st.plotly_chart(fig3, use_container_width=True)
             st.markdown("---")
@@ -246,8 +244,7 @@ def exibir_dashboard_visual(df_aluno):
             df_temp['Cat'] = df_temp.iloc[:, 4].apply(categorizar_enfrentamento_hibrida)
             dados = df_temp['Cat'].value_counts().head(10).reset_index()
             dados.columns = ['Motivo', 'Qtd']
-            # COR ALTO CONTRASTE (AZUL REAL)
-            fig4 = px.bar(dados, x='Qtd', y='Motivo', orientation='h', text_auto=True, color='Qtd', color_continuous_scale=['#87CEEB', '#00008B'])
+            fig4 = px.bar(dados, x='Qtd', y='Motivo', orientation='h', text_auto=True, color='Qtd', color_continuous_scale=['#87CEEB', '#00008B']) # Blue
             fig4.update_layout(**bar_layout)
             st.plotly_chart(fig4, use_container_width=True)
             st.markdown("---")
@@ -259,7 +256,6 @@ def exibir_dashboard_visual(df_aluno):
             df_temp['Cat'] = df_temp.iloc[:, 2].apply(categorizar_geral_hibrida)
             dados = df_temp['Cat'].value_counts().head(10).reset_index()
             dados.columns = ['Local', 'Qtd']
-            # COR ALTO CONTRASTE (AZUL MARINHO SÓLIDO)
             fig5 = px.pie(dados, names='Local', values='Qtd', hole=0.5, color_discrete_sequence=px.colors.qualitative.Bold)
             fig5.update_layout(**pie_layout)
             fig5.update_traces(textposition='inside', textinfo='percent+label')
@@ -273,8 +269,7 @@ def exibir_dashboard_visual(df_aluno):
             df_temp['Cat'] = df_temp.iloc[:, 6].apply(lambda x: str(x).upper().strip())
             dados = df_temp['Cat'].value_counts().head(10).reset_index()
             dados.columns = ['Emoção', 'Qtd']
-            # COR ALTO CONTRASTE (VERMELHO SANGUE)
-            fig6 = px.bar(dados, x='Qtd', y='Emoção', orientation='h', text_auto=True, color='Qtd', color_continuous_scale=['#FA8072', '#8B0000'])
+            fig6 = px.bar(dados, x='Qtd', y='Emoção', orientation='h', text_auto=True, color='Qtd', color_continuous_scale=['#FA8072', '#8B0000']) # Red
             fig6.update_layout(**bar_layout)
             st.plotly_chart(fig6, use_container_width=True)
             st.markdown("---")
@@ -286,9 +281,7 @@ def exibir_dashboard_visual(df_aluno):
             df_temp['Cat'] = df_temp.iloc[:, 5].apply(categorizar_motivos_principais_hibrida)
             dados = df_temp['Cat'].value_counts().head(10).reset_index()
             dados.columns = ['Motivo Principal', 'Qtd']
-            
-            # COR ALTO CONTRASTE (ROXO PROFUNDO)
-            fig7 = px.bar(dados, x='Qtd', y='Motivo Principal', orientation='h', text_auto=True, color='Qtd', color_continuous_scale=['#9370DB', '#4B0082'])
+            fig7 = px.bar(dados, x='Qtd', y='Motivo Principal', orientation='h', text_auto=True, color='Qtd', color_continuous_scale=['#9370DB', '#4B0082']) # Purple
             fig7.update_layout(**bar_layout)
             st.plotly_chart(fig7, use_container_width=True)
 
@@ -450,7 +443,6 @@ elif pagina == "Área Administrativa":
             c1, c2 = st.columns(2)
             c1.metric("Total de Alunos", df_perfil_total.iloc[:,1].nunique() if not df_perfil_total.empty else 0)
             c2.metric("Mapeamentos Registrados", len(df_gatilhos_total))
-            
             exibir_dashboard_visual(df_gatilhos_total)
             
             st.markdown("---")
