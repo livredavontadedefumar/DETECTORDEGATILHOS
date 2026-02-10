@@ -8,10 +8,9 @@ import plotly.express as px
 from datetime import datetime
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
-# Voltei para o ícone de folha provisoriamente para não travar o app
 st.set_page_config(
     page_title="Madrinha-IA - MAPA COMPORTAMENTAL",
-    page_icon="🌿", 
+    page_icon="logo.png", # Agora usa sua logo como ícone da aba
     layout="wide",
 )
 
@@ -87,6 +86,13 @@ def registrar_uso_diagnostico(email_usuario):
 def gerar_pdf_formatado(dados_perfil, top_gatilhos, texto_diagnostico):
     pdf = FPDF()
     pdf.add_page()
+    # Tenta colocar a logo no PDF também (opcional, se der erro ele ignora)
+    try:
+        pdf.image("logo.png", x=10, y=8, w=30)
+        pdf.set_y(40) # Desce o texto para não ficar em cima da logo
+    except:
+        pass # Se não achar a logo pro PDF, segue sem ela
+
     pdf.set_font("Arial", "B", 18)
     pdf.set_text_color(46, 125, 50)
     pdf.cell(0, 15, txt="Livre da Vontade de Fumar", ln=True, align="C")
@@ -458,10 +464,12 @@ pagina = st.sidebar.radio("Ir para:", ["Área do Aluno", "Área Administrativa"]
 # --- ÁREA DO ALUNO ---
 if pagina == "Área do Aluno":
     # -------------------------------------------------------------
-    # SUBSTITUIÇÃO DA IMAGEM POR TÍTULO/EMOJI PARA NÃO TRAVAR
-    # Quando você subir o arquivo image_2.png no github,
-    # pode trocar a linha abaixo por: st.image("image_2.png", width=50)
-    st.markdown("## 🧚‍♀️ Madrinha-IA")
+    # Exibe a logo se o arquivo existir no github (logo.png)
+    # Se der erro, ele continua sem quebrar o app
+    try:
+        st.image("logo.png", width=120)
+    except:
+        st.markdown("## 🧚‍♀️ Madrinha-IA")
     # -------------------------------------------------------------
     
     st.title("MAPA COMPORTAMENTAL")
