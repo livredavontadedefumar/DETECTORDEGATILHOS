@@ -577,7 +577,7 @@ if pagina == "Área do Aluno":
             st.subheader("🧠 Inteligência Comportamental")
 
             pode_gerar = False
-            msg_botao = "🚀 GERAR DIAGNÓSTICO DO MENTOR"
+            msg_botao = "🚀 GERAR DIAGNÓSTICO DA MADRINHA-IA"
 
             if dias_unicos < 7:
                 st.warning(
