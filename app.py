@@ -464,15 +464,19 @@ pagina = st.sidebar.radio("Ir para:", ["Área do Aluno", "Área Administrativa"]
 # --- ÁREA DO ALUNO ---
 if pagina == "Área do Aluno":
     # -------------------------------------------------------------
-    # CABEÇALHO CORRIGIDO: MOSTRA LOGO E TEXTO SEMPRE
+    # CABEÇALHO LADO A LADO (LOGO + TEXTO)
     # -------------------------------------------------------------
-    try:
-        st.image("logo.png", width=120)
-    except:
-        st.markdown("## 🧚‍♀️") # Ícone de fallback se a logo falhar
+    c_logo, c_text = st.columns([1, 5])
+    
+    with c_logo:
+        try:
+            st.image("logo.png", width=80)
+        except:
+            st.markdown("## 🧚‍♀️")
+            
+    with c_text:
+        st.markdown("# Madrinha-IA")
         
-    # Estes textos agora estão fora do 'try', então aparecem sempre!
-    st.markdown("# Madrinha-IA")
     st.markdown("### MAPA COMPORTAMENTAL")
     # -------------------------------------------------------------
     
