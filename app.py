@@ -8,9 +8,10 @@ import plotly.express as px
 from datetime import datetime
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
+# Voltei para o ícone de folha provisoriamente para não travar o app
 st.set_page_config(
     page_title="Madrinha-IA - MAPA COMPORTAMENTAL",
-    page_icon="image_2.png",
+    page_icon="🌿", 
     layout="wide",
 )
 
@@ -456,8 +457,14 @@ pagina = st.sidebar.radio("Ir para:", ["Área do Aluno", "Área Administrativa"]
 
 # --- ÁREA DO ALUNO ---
 if pagina == "Área do Aluno":
-    st.image("image_2.png", width=50)
-    st.title("Madrinha-IA\nMAPA COMPORTAMENTAL")
+    # -------------------------------------------------------------
+    # SUBSTITUIÇÃO DA IMAGEM POR TÍTULO/EMOJI PARA NÃO TRAVAR
+    # Quando você subir o arquivo image_2.png no github,
+    # pode trocar a linha abaixo por: st.image("image_2.png", width=50)
+    st.markdown("## 🧚‍♀️ Madrinha-IA")
+    # -------------------------------------------------------------
+    
+    st.title("MAPA COMPORTAMENTAL")
     if "user_email" not in st.session_state:
         email_input = st.text_input("Digite seu e-mail cadastrado:").strip().lower()
         if st.button("Acessar Meus Dados"):
