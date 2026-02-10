@@ -6,6 +6,7 @@ import google.generativeai as genai
 from fpdf import FPDF
 import plotly.express as px
 from datetime import datetime
+import base64 # Import necessário para o novo layout de imagem
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(
@@ -24,6 +25,15 @@ hide_st_style = """
             """
 st.markdown(hide_st_style, unsafe_allow_html=True)
 
+# --- FUNÇÃO AUXILIAR PARA CARREGAR IMAGEM EM HTML (NOVO V17) ---
+def get_image_base64(path):
+    """Lê a imagem local e converte para base64 para uso em HTML"""
+    try:
+        with open(path, "rb") as image_file:
+            encoded_string = base64.b64encode(image_file.read()).decode()
+        return f"data:image/png;base64,{encoded_string}"
+    except Exception:
+        return None
 
 # --- 1. CONEXÃO COM GOOGLE SHEETS ---
 def conectar_planilha():
@@ -464,22 +474,27 @@ pagina = st.sidebar.radio("Ir para:", ["Área do Aluno", "Área Administrativa"]
 # --- ÁREA DO ALUNO ---
 if pagina == "Área do Aluno":
     # -------------------------------------------------------------
-    # CABEÇALHO LADO A LADO (LOGO + TEXTO)
+    # CABEÇALHO PERSONALIZADO COM HTML/CSS PARA ESPAÇAMENTO ZERO
     # -------------------------------------------------------------
-    c_logo, c_text = st.columns([1, 5])
-    
-    with c_logo:
-        try:
-            st.image("logo.png", width=80)
-        except:
-            st.markdown("## 🧚‍♀️")
-            
-    with c_text:
-        st.markdown("# Madrinha-IA")
-        
-    st.markdown("### MAPA COMPORTAMENTAL")
+    logo_b64 = get_image_base64("logo.png")
+
+    if logo_b64:
+        # Layout HTML se a imagem carregar corretamente
+        header_html = f"""
+        <div style="display: flex; align-items: center; margin-bottom: 10px;">
+            <img src="{logo_b64}" style="width: 70px; margin-right: 10px;"> <h1 style="margin: 0; padding: 0; white-space: nowrap;">Madrinha-IA</h1>
+        </div>
+        <h3 style="margin: 0; padding: 0;">MAPA COMPORTAMENTAL</h3>
+        """
+        st.markdown(header_html, unsafe_allow_html=True)
+    else:
+        # Fallback se a imagem falhar
+        st.markdown("# 🧚‍♀️ Madrinha-IA")
+        st.markdown("### MAPA COMPORTAMENTAL")
     # -------------------------------------------------------------
     
+    st.markdown("---") # Linha separadora após o cabeçalho
+
     if "user_email" not in st.session_state:
         email_input = st.text_input("Digite seu e-mail cadastrado:").strip().lower()
         if st.button("Acessar Meus Dados"):
