@@ -5,7 +5,7 @@ from google.oauth2.service_account import Credentials
 import google.generativeai as genai
 from fpdf import FPDF
 import plotly.express as px
-from datetime import datetime
+from datetime import datetime, timedelta
 import base64
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
@@ -15,11 +15,11 @@ st.set_page_config(
     layout="wide",
 )
 
-# --- CSS PARA REMOVER MENUS (VISUAL APP NATIVO) ---
+# --- CSS AJUSTADO (V22) ---
+# Removemos a linha 'footer {visibility: hidden;}' para o rodapé voltar
 hide_st_style = """
             <style>
             #MainMenu {visibility: hidden;}
-            footer {visibility: hidden;}
             header {visibility: hidden;}
             </style>
             """
@@ -29,8 +29,7 @@ st.markdown(hide_st_style, unsafe_allow_html=True)
 ADMIN_EMAIL = "livredavontadedefumar@gmail.com"
 ADMIN_PASS = "Mc2284**lC"
 
-# LISTA DE MADRINHAS E SENHA PADRÃO
-# A senha deve ser digitada exatamente assim (M maiúsculo)
+# LISTA DE MADRINHAS
 MADRINHAS_EMAILS = [
     "luannyfaustino53@gmail.com",
     "costaebastos@yahoo.com"
