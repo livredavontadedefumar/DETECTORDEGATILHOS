@@ -5,7 +5,7 @@ from google.oauth2.service_account import Credentials
 import google.generativeai as genai
 from fpdf import FPDF
 import plotly.express as px
-from datetime import datetime
+from datetime import datetime, timedelta
 import base64
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
@@ -25,9 +25,17 @@ hide_st_style = """
             """
 st.markdown(hide_st_style, unsafe_allow_html=True)
 
-# --- CONSTANTES DE ADMINISTRAÇÃO ---
+# --- CONSTANTES DE ACESSO ---
 ADMIN_EMAIL = "livredavontadedefumar@gmail.com"
 ADMIN_PASS = "Mc2284**lC"
+
+# LISTA DE MADRINHAS E SENHA PADRÃO
+MADRINHAS_EMAILS = [
+    "luannyfaustino53@gmail.com",
+    "costaebastos@yahoo.com"
+    # Adicione novos emails aqui entre aspas e com virgula
+]
+MADRINHA_PASS = "Madrinha2026*"
 
 # --- FUNÇÃO AUXILIAR PARA IMAGEM HTML ---
 def get_image_base64(path):
@@ -61,7 +69,9 @@ def carregar_todos_os_dados():
                 ws_log = sh.worksheet("LOG_DIAGNOSTICOS")
                 df_l = pd.DataFrame(ws_log.get_all_records())
             except:
-                df_l = pd.DataFrame(columns=["DATA", "EMAIL"])
+                # Cria estrutura de segurança se não existir
+                df_l = pd.DataFrame(columns=["DATA", "QUEM_SOLICITOU", "ALUNO_ANALISADO"])
+            
             df_p = pd.DataFrame(ws_perfil.get_all_records())
             df_g = pd.DataFrame(ws_gatilhos.get_all_records())
             return df_p, df_g, df_l
@@ -71,17 +81,39 @@ def carregar_todos_os_dados():
 
 df_perfil_total, df_gatilhos_total, df_log_total = carregar_todos_os_dados()
 
-# --- FUNÇÕES ÚTEIS ---
-def registrar_uso_diagnostico(email_usuario):
+# --- FUNÇÕES ÚTEIS (LOG E PDF) ---
+def registrar_uso_diagnostico(quem_solicitou, aluno_analisado):
     sh = conectar_planilha()
     if sh:
         try:
             ws_log = sh.worksheet("LOG_DIAGNOSTICOS")
             data_hora = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            ws_log.append_row([data_hora, email_usuario])
+            # Salva QUEM pediu e PARA QUEM pediu
+            ws_log.append_row([data_hora, quem_solicitou, aluno_analisado])
             return True
         except: return False
     return False
+
+def verificar_limite_madrinha(email_madrinha, email_aluno, df_log):
+    """ Verifica se a madrinha já estourou o limite de 2 diagnósticos para ESSE aluno em 7 dias """
+    if df_log.empty: return True # Se não tem log, pode gerar
+    
+    # Filtra ações dessa madrinha para esse aluno
+    mask_madrinha = df_log.iloc[:, 1].astype(str).str.strip().str.lower() == email_madrinha
+    mask_aluno = df_log.iloc[:, 2].astype(str).str.strip().str.lower() == email_aluno
+    
+    usos = df_log[mask_madrinha & mask_aluno].copy()
+    
+    if usos.empty: return True
+    
+    # Converte datas e filtra últimos 7 dias
+    usos['Data_Obj'] = pd.to_datetime(usos.iloc[:, 0], errors='coerce')
+    limite_data = datetime.now() - timedelta(days=7)
+    usos_recentes = usos[usos['Data_Obj'] >= limite_data]
+    
+    if len(usos_recentes) >= 2:
+        return False # Bloqueia
+    return True # Libera
 
 def gerar_pdf_formatado(dados_perfil, top_gatilhos, texto_diagnostico):
     pdf = FPDF()
@@ -128,7 +160,8 @@ def filtrar_aluno(df, email_aluno):
         return df[df[col_email] == email_aluno]
     return pd.DataFrame()
 
-# --- INTELIGÊNCIA DE DADOS ---
+# --- INTELIGÊNCIA DE DADOS (HÍBRIDA) ---
+# ... (Mantendo as mesmas funções de categorização que já funcionam bem) ...
 def categorizar_geral_hibrida(texto):
     t = str(texto).upper().strip()
     if any(k in t for k in ['ACORDEI', 'ACORDANDO', 'LEVANTANDO', 'CAMA', 'JEJUM', 'MANHÃ']): return "PRIMEIRO DO DIA (ACORDAR)"
@@ -187,9 +220,12 @@ def categorizar_habitos_raio_x(texto):
     if len(t) > 2: return t
     return "NENHUM HÁBITO ESPECÍFICO"
 
+# --- FUNÇÃO DE DASHBOARD VISUAL ---
 def exibir_dashboard_visual(df_aluno):
     st.subheader("📊 Painel da Autoconsciência")
     st.markdown("---")
+    
+    # Layouts Mobile (Margens 50px)
     pie_layout = dict(margin=dict(l=0, r=0, t=50, b=0), legend=dict(orientation="h", yanchor="top", y=-0.1, xanchor="center", x=0.5))
     bar_layout = dict(margin=dict(l=0, r=0, t=50, b=0), yaxis=dict(autorange="reversed"))
     
@@ -229,7 +265,7 @@ def exibir_dashboard_visual(df_aluno):
             df_temp['Cat'] = df_temp.iloc[:, 7].apply(categorizar_habitos_raio_x)
             dados = df_temp['Cat'].value_counts().head(10).reset_index()
             dados.columns = ['Hábito', 'Qtd']
-            fig3 = px.bar(dados, x='Qtd', y='Hábito', orientation='h', text_auto=True, color_discrete_sequence=['#D2691E'])
+            fig3 = px.bar(dados, x='Qtd', y='Hábito', orientation='h', text_auto=True, color_discrete_sequence=['#D2691E']) 
             fig3.update_layout(**bar_layout)
             st.plotly_chart(fig3, use_container_width=True)
             st.markdown("---")
@@ -256,7 +292,7 @@ def exibir_dashboard_visual(df_aluno):
             fig5.update_traces(textposition='inside', textinfo='percent+label')
             st.plotly_chart(fig5, use_container_width=True)
             st.markdown("---")
-
+        
         if df_aluno.shape[1] > 6:
             st.markdown("##### 6. Emoções Propícias ao Consumo")
             df_temp = df_aluno.copy()
@@ -281,75 +317,110 @@ def exibir_dashboard_visual(df_aluno):
     except Exception as e:
         st.error(f"Erro ao gerar gráficos: {e}")
 
-# --- LÓGICA DE NAVEGAÇÃO (SEM SIDEBAR) ---
+# --- LÓGICA DE NAVEGAÇÃO ---
 if "admin_logado" not in st.session_state: st.session_state.admin_logado = False
+if "tipo_usuario" not in st.session_state: st.session_state.tipo_usuario = None # 'adm' ou 'madrinha'
+if "email_logado" not in st.session_state: st.session_state.email_logado = ""
 
-# SE ESTIVER LOGADO COMO ADMIN, MOSTRA PAINEL ADM
+# SE ESTIVER LOGADO NO PAINEL (ADM OU MADRINHA)
 if st.session_state.admin_logado:
-    st.title("👑 Painel do Fundador")
-    if st.button("🚪 Sair do Modo Admin"):
+    
+    # Cabeçalho Personalizado
+    if st.session_state.tipo_usuario == 'adm':
+        st.title("👑 Painel do Fundador")
+    else:
+        st.title("🧚‍♀️ Painel da Madrinha")
+        st.info(f"Logada como: {st.session_state.email_logado}")
+
+    if st.button("🚪 Sair do Painel"):
         st.session_state.admin_logado = False
+        st.session_state.tipo_usuario = None
         st.rerun()
     
     st.markdown("---")
     st.subheader("📊 Visão Geral da Turma")
+    
+    # VISÃO GERAL (TODOS VEEM)
     if not df_gatilhos_total.empty:
         c1, c2 = st.columns(2)
         c1.metric("Total de Alunos", df_perfil_total.iloc[:,1].nunique() if not df_perfil_total.empty else 0)
         c2.metric("Mapeamentos", len(df_gatilhos_total))
         exibir_dashboard_visual(df_gatilhos_total)
         
-        st.markdown("---")
-        st.subheader("🧠 Inteligência de Avatar (Diagnóstico de Turma)")
-        if st.button("🌍 GERAR DOSSIÊ ESTRATÉGICO"):
-            try:
-                genai.configure(api_key=st.secrets["gemini"]["api_key"])
-                model = genai.GenerativeModel('gemini-2.0-flash')
-                top_g = df_gatilhos_total.iloc[:, 3].apply(categorizar_geral_hibrida).value_counts().head(10).to_dict()
-                top_e = df_gatilhos_total.iloc[:, 6].apply(lambda x: str(x).upper()).value_counts().head(10).to_dict()
-                top_h = df_gatilhos_total.iloc[:, 7].apply(categorizar_habitos_raio_x).value_counts().head(10).to_dict()
-                prompt_turma = f"""
-                Você é o Estrategista Chefe do 'Livre da Vontade'. Analise:
-                TOP GATILHOS: {top_g} | TOP EMOÇÕES: {top_e} | TOP HÁBITOS: {top_h}
-                TAREFA: Crie um Dossiê do Avatar Coletivo. Identifique o "Vilão nº 1", descreva o "Ciclo de Dor" e sugira 3 aulas.
-                """
-                with st.spinner("Gerando..."):
-                    resp = model.generate_content(prompt_turma)
-                    st.session_state.diag_turma = resp.text
-                    st.success("Sucesso!")
-                    st.markdown(st.session_state.diag_turma)
-            except Exception as e: st.error(f"Erro: {e}")
-        
-        if "diag_turma" in st.session_state:
-            pdf_turma = gerar_pdf_formatado({'nome': 'DOSSIÊ TURMA'}, pd.Series(), st.session_state.diag_turma)
-            st.download_button("📥 Baixar Dossiê (PDF)", data=pdf_turma, file_name="Dossie_Turma.pdf")
+        # DOSSIÊ ESTRATÉGICO (SÓ ADM VÊ)
+        if st.session_state.tipo_usuario == 'adm':
+            st.markdown("---")
+            st.subheader("🧠 Inteligência de Avatar (Diagnóstico de Turma)")
+            if st.button("🌍 GERAR DOSSIÊ ESTRATÉGICO"):
+                try:
+                    genai.configure(api_key=st.secrets["gemini"]["api_key"])
+                    model = genai.GenerativeModel('gemini-2.0-flash')
+                    top_g = df_gatilhos_total.iloc[:, 3].apply(categorizar_geral_hibrida).value_counts().head(10).to_dict()
+                    top_e = df_gatilhos_total.iloc[:, 6].apply(lambda x: str(x).upper()).value_counts().head(10).to_dict()
+                    top_h = df_gatilhos_total.iloc[:, 7].apply(categorizar_habitos_raio_x).value_counts().head(10).to_dict()
+                    prompt_turma = f"""
+                    Você é o Estrategista Chefe do 'Livre da Vontade'. Analise:
+                    TOP GATILHOS: {top_g} | TOP EMOÇÕES: {top_e} | TOP HÁBITOS: {top_h}
+                    TAREFA: Crie um Dossiê do Avatar Coletivo. Identifique o "Vilão nº 1", descreva o "Ciclo de Dor" e sugira 3 aulas.
+                    """
+                    with st.spinner("Gerando..."):
+                        resp = model.generate_content(prompt_turma)
+                        st.session_state.diag_turma = resp.text
+                        st.success("Sucesso!")
+                        st.markdown(st.session_state.diag_turma)
+                except Exception as e: st.error(f"Erro: {e}")
+            
+            if "diag_turma" in st.session_state:
+                pdf_turma = gerar_pdf_formatado({'nome': 'DOSSIÊ TURMA'}, pd.Series(), st.session_state.diag_turma)
+                st.download_button("📥 Baixar Dossiê (PDF)", data=pdf_turma, file_name="Dossie_Turma.pdf")
 
     st.markdown("---")
     st.subheader("🔍 Auditoria Individual")
     emails_lista = df_perfil_total.iloc[:, 1].unique().tolist() if not df_perfil_total.empty else []
     aluno_selecionado = st.selectbox("Selecione o aluno:", [""] + emails_lista)
+    
     if aluno_selecionado:
         p_adm = filtrar_aluno(df_perfil_total, aluno_selecionado)
         g_adm = filtrar_aluno(df_gatilhos_total, aluno_selecionado)
+        
         if not g_adm.empty:
             exibir_dashboard_visual(g_adm)
-        if st.button("🚀 GERAR DIAGNÓSTICO INDIVIDUAL (ADM)"):
-            try:
-                genai.configure(api_key=st.secrets["gemini"]["api_key"])
-                model = genai.GenerativeModel('gemini-2.0-flash')
-                h_adm = g_adm.iloc[:, [3, 6]].tail(15).to_dict('records')
-                prompt_adm = f"Analise como Mentor IA: PERFIL {p_adm.tail(1).to_dict('records')} GATILHOS {h_adm}. Proibido sugerir vape/redução."
-                with st.spinner("Gerando..."):
-                    resp = model.generate_content(prompt_adm)
-                    st.session_state.diag_adm = resp.text
-                    st.info(st.session_state.diag_adm)
-            except Exception as e: st.error(f"Erro: {e}")
+        
+        # BOTÃO DE DIAGNÓSTICO COM TRAVAS PARA MADRINHA
+        pode_gerar_diag = True
+        msg_bloqueio = ""
+        
+        if st.session_state.tipo_usuario == 'madrinha':
+            if not verificar_limite_madrinha(st.session_state.email_logado, aluno_selecionado, df_log_total):
+                pode_gerar_diag = False
+                msg_bloqueio = "⚠️ Limite atingido: Você já gerou 2 diagnósticos para este aluno nos últimos 7 dias. Baixe o PDF anterior."
+
+        if pode_gerar_diag:
+            if st.button("🚀 GERAR DIAGNÓSTICO INDIVIDUAL"):
+                # Registra o uso (para ADM e Madrinha)
+                registrar_uso_diagnostico(st.session_state.email_logado, aluno_selecionado)
+                try:
+                    genai.configure(api_key=st.secrets["gemini"]["api_key"])
+                    model = genai.GenerativeModel('gemini-2.0-flash')
+                    h_adm = g_adm.iloc[:, [3, 6]].tail(15).to_dict('records')
+                    prompt_adm = f"Analise como Mentor IA: PERFIL {p_adm.tail(1).to_dict('records')} GATILHOS {h_adm}. Proibido sugerir vape/redução."
+                    with st.spinner("Gerando auditoria..."):
+                        resp = model.generate_content(prompt_adm)
+                        st.session_state.diag_adm = resp.text
+                        st.info(st.session_state.diag_adm)
+                        st.rerun() # Atualiza para contar o uso na hora
+                except Exception as e: st.error(f"Erro: {e}")
+        else:
+            st.error(msg_bloqueio)
+
         if "diag_adm" in st.session_state:
             d_adm = p_adm.tail(1).to_dict('records')[0] if not p_adm.empty else {}
-            pdf_adm = gerar_pdf_formatado(d_adm, g_adm.iloc[:,3].value_counts().head(3), st.session_state.diag_adm)
+            # Top gatilhos para o PDF
+            top_g_pdf = g_adm.iloc[:,3].value_counts().head(3) if not g_adm.empty else pd.Series()
+            pdf_adm = gerar_pdf_formatado(d_adm, top_g_pdf, st.session_state.diag_adm)
             st.download_button("📥 Baixar PDF", data=pdf_adm, file_name=f"Auditoria_{aluno_selecionado}.pdf")
 
-# SE NÃO, MOSTRA ÁREA DO ALUNO (DEFAULT)
+# ÁREA DO ALUNO (DEFAULT)
 else:
     logo_b64 = get_image_base64("logo.png")
     if logo_b64:
@@ -384,7 +455,18 @@ else:
                 st.rerun()
         else:
             st.success(f"Logado: {email}")
-            # Identidade Compacta
+            
+            with st.expander("📲 Como instalar o App no celular"):
+                st.markdown("""
+                **Para iPhone (iOS):**
+                1. No Safari, clique no botão de **Compartilhar** (quadrado com seta).
+                2. Role para baixo e toque em **"Adicionar à Tela de Início"**.
+                
+                **Para Android:**
+                1. No Chrome, clique nos **3 pontinhos** no canto superior.
+                2. Toque em **"Adicionar à Tela Inicial"** ou **"Instalar Aplicativo"**.
+                """)
+
             dados_aluno_pdf = {}
             top_gatilhos_pdf = pd.Series(dtype=int)
             if not perfil.empty:
@@ -401,7 +483,6 @@ else:
                     </div>
                     """, unsafe_allow_html=True)
 
-            # Lógica de Elegibilidade
             dias_unicos = 0
             diagnosticos_usados = 0
             if not gatilhos.empty:
@@ -409,6 +490,8 @@ else:
                 df_datas['Data_Limpa'] = pd.to_datetime(df_datas.iloc[:, 0], dayfirst=True, errors='coerce').dt.date
                 dias_unicos = df_datas['Data_Limpa'].nunique()
                 if not df_log_total.empty:
+                    # Filtra apenas os pedidos feitos PELO PRÓPRIO ALUNO (email dele na col QUEM_SOLICITOU)
+                    # Coluna B (index 1) é QUEM_SOLICITOU
                     usos = df_log_total[df_log_total.iloc[:, 1].astype(str).str.strip().str.lower() == email]
                     diagnosticos_usados = len(usos)
             
@@ -445,7 +528,8 @@ else:
 
             if pode_gerar:
                 if st.button(msg_botao):
-                    if registrar_uso_diagnostico(email):
+                    # Registra uso: QUEM (Aluno) | PARA QUEM (Aluno)
+                    if registrar_uso_diagnostico(email, email):
                         try:
                             genai.configure(api_key=st.secrets["gemini"]["api_key"])
                             model = genai.GenerativeModel('gemini-2.0-flash')
@@ -464,15 +548,24 @@ else:
                 pdf_b = gerar_pdf_formatado(dados_aluno_pdf, top_gatilhos_pdf, st.session_state.ultimo_diagnostico)
                 st.download_button("📥 Baixar PDF", data=pdf_b, file_name="Diagnostico.pdf", mime="application/pdf")
 
-    # --- ACESSO ADMINISTRATIVO DISCRETO NO RODAPÉ ---
-    st.markdown("<br><br>", unsafe_allow_html=True) # Espaço extra no final
-    with st.expander("🔐 Acesso Restrito"):
+    # --- ACESSO ADMINISTRATIVO NO RODAPÉ ---
+    st.markdown("<br><br><hr>", unsafe_allow_html=True)
+    with st.expander("🔐 Acesso Restrito (Equipe)"):
         with st.form("login_admin_footer"):
             email_adm = st.text_input("E-mail:", placeholder="admin@email.com").strip().lower()
             pass_adm = st.text_input("Senha:", type="password", placeholder="******")
             if st.form_submit_button("Entrar no Painel"):
+                # LOGIN FUNDADOR
                 if email_adm == ADMIN_EMAIL and pass_adm == ADMIN_PASS:
                     st.session_state.admin_logado = True
+                    st.session_state.tipo_usuario = 'adm'
+                    st.session_state.email_logado = email_adm
+                    st.rerun()
+                # LOGIN MADRINHA
+                elif email_adm in MADRINHAS_EMAILS and pass_adm == MADRINHA_PASS:
+                    st.session_state.admin_logado = True
+                    st.session_state.tipo_usuario = 'madrinha'
+                    st.session_state.email_logado = email_adm
                     st.rerun()
                 else:
-                    st.error("Dados incorretos.")
+                    st.error("Dados incorretos ou e-mail não autorizado.")
