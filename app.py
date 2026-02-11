@@ -15,12 +15,20 @@ st.set_page_config(
     layout="wide",
 )
 
-# --- CSS AJUSTADO (V22) ---
-# Removemos a linha 'footer {visibility: hidden;}' para o rodapé voltar
+# --- CSS V23.0 (FORÇAR RODAPÉ VISÍVEL) ---
 hide_st_style = """
             <style>
+            /* Esconde o Menu Superior (Hamburguer) e a Barra Colorida do Topo */
             #MainMenu {visibility: hidden;}
             header {visibility: hidden;}
+            
+            /* FORÇA O RODAPÉ A APARECER (OVERRIDE) */
+            footer {
+                visibility: visible !important;
+                display: block !important;
+                opacity: 1 !important;
+                position: relative !important;
+            }
             </style>
             """
 st.markdown(hide_st_style, unsafe_allow_html=True)
@@ -79,7 +87,7 @@ def carregar_todos_os_dados():
 
 df_perfil_total, df_gatilhos_total, df_log_total = carregar_todos_os_dados()
 
-# --- FUNÇÕES ÚTEIS (LOG E PDF) ---
+# --- FUNÇÕES ÚTEIS ---
 def registrar_uso_diagnostico(quem_solicitou, aluno_analisado):
     sh = conectar_planilha()
     if sh:
@@ -307,10 +315,7 @@ if "admin_logado" not in st.session_state: st.session_state.admin_logado = False
 if "tipo_usuario" not in st.session_state: st.session_state.tipo_usuario = None 
 if "email_logado" not in st.session_state: st.session_state.email_logado = ""
 
-# SE ESTIVER LOGADO NO PAINEL (ADM OU MADRINHA)
 if st.session_state.admin_logado:
-    
-    # Cabeçalho Personalizado
     if st.session_state.tipo_usuario == 'adm':
         st.title("👑 Painel do Fundador")
     else:
@@ -325,14 +330,12 @@ if st.session_state.admin_logado:
     st.markdown("---")
     st.subheader("📊 Visão Geral da Turma")
     
-    # VISÃO GERAL (TODOS VEEM)
     if not df_gatilhos_total.empty:
         c1, c2 = st.columns(2)
         c1.metric("Total de Alunos", df_perfil_total.iloc[:,1].nunique() if not df_perfil_total.empty else 0)
         c2.metric("Mapeamentos", len(df_gatilhos_total))
         exibir_dashboard_visual(df_gatilhos_total)
         
-        # DOSSIÊ ESTRATÉGICO (SÓ ADM VÊ)
         if st.session_state.tipo_usuario == 'adm':
             st.markdown("---")
             st.subheader("🧠 Inteligência de Avatar (Diagnóstico de Turma)")
@@ -371,7 +374,6 @@ if st.session_state.admin_logado:
         if not g_adm.empty:
             exibir_dashboard_visual(g_adm)
         
-        # BOTÃO DE DIAGNÓSTICO COM TRAVAS PARA MADRINHA
         pode_gerar_diag = True
         msg_bloqueio = ""
         
@@ -382,7 +384,6 @@ if st.session_state.admin_logado:
 
         if pode_gerar_diag:
             if st.button("🚀 GERAR DIAGNÓSTICO INDIVIDUAL"):
-                # Registra o uso (para ADM e Madrinha)
                 registrar_uso_diagnostico(st.session_state.email_logado, aluno_selecionado)
                 try:
                     genai.configure(api_key=st.secrets["gemini"]["api_key"])
@@ -393,19 +394,17 @@ if st.session_state.admin_logado:
                         resp = model.generate_content(prompt_adm)
                         st.session_state.diag_adm = resp.text
                         st.info(st.session_state.diag_adm)
-                        st.rerun() # Atualiza para contar o uso na hora
+                        st.rerun()
                 except Exception as e: st.error(f"Erro: {e}")
         else:
             st.error(msg_bloqueio)
 
         if "diag_adm" in st.session_state:
             d_adm = p_adm.tail(1).to_dict('records')[0] if not p_adm.empty else {}
-            # Top gatilhos para o PDF
             top_g_pdf = g_adm.iloc[:,3].value_counts().head(3) if not g_adm.empty else pd.Series()
             pdf_adm = gerar_pdf_formatado(d_adm, top_g_pdf, st.session_state.diag_adm)
             st.download_button("📥 Baixar PDF", data=pdf_adm, file_name=f"Auditoria_{aluno_selecionado}.pdf")
 
-# ÁREA DO ALUNO (DEFAULT)
 else:
     logo_b64 = get_image_base64("logo.png")
     if logo_b64:
@@ -475,8 +474,6 @@ else:
                 df_datas['Data_Limpa'] = pd.to_datetime(df_datas.iloc[:, 0], dayfirst=True, errors='coerce').dt.date
                 dias_unicos = df_datas['Data_Limpa'].nunique()
                 if not df_log_total.empty:
-                    # Filtra apenas os pedidos feitos PELO PRÓPRIO ALUNO (email dele na col QUEM_SOLICITOU)
-                    # Coluna B (index 1) é QUEM_SOLICITOU
                     usos = df_log_total[df_log_total.iloc[:, 1].astype(str).str.strip().str.lower() == email]
                     diagnosticos_usados = len(usos)
             
@@ -513,7 +510,6 @@ else:
 
             if pode_gerar:
                 if st.button(msg_botao):
-                    # Registra uso: QUEM (Aluno) | PARA QUEM (Aluno)
                     if registrar_uso_diagnostico(email, email):
                         try:
                             genai.configure(api_key=st.secrets["gemini"]["api_key"])
@@ -533,20 +529,17 @@ else:
                 pdf_b = gerar_pdf_formatado(dados_aluno_pdf, top_gatilhos_pdf, st.session_state.ultimo_diagnostico)
                 st.download_button("📥 Baixar PDF", data=pdf_b, file_name="Diagnostico.pdf", mime="application/pdf")
 
-    # --- ACESSO ADMINISTRATIVO NO RODAPÉ ---
     st.markdown("<br><br><hr>", unsafe_allow_html=True)
     with st.expander("🔐 Acesso Restrito (Equipe)"):
         with st.form("login_admin_footer"):
             email_adm = st.text_input("E-mail:", placeholder="admin@email.com").strip().lower()
-            pass_adm = st.text_input("Senha:", type="password", placeholder="******").strip() # .strip() para segurança
+            pass_adm = st.text_input("Senha:", type="password", placeholder="******").strip()
             if st.form_submit_button("Entrar no Painel"):
-                # LOGIN FUNDADOR
                 if email_adm == ADMIN_EMAIL and pass_adm == ADMIN_PASS:
                     st.session_state.admin_logado = True
                     st.session_state.tipo_usuario = 'adm'
                     st.session_state.email_logado = email_adm
                     st.rerun()
-                # LOGIN MADRINHA
                 elif email_adm in MADRINHAS_EMAILS and pass_adm == MADRINHA_PASS:
                     st.session_state.admin_logado = True
                     st.session_state.tipo_usuario = 'madrinha'
