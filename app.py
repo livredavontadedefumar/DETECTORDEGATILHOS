@@ -474,6 +474,8 @@ else:
                 df_datas['Data_Limpa'] = pd.to_datetime(df_datas.iloc[:, 0], dayfirst=True, errors='coerce').dt.date
                 dias_unicos = df_datas['Data_Limpa'].nunique()
                 if not df_log_total.empty:
+                    # Filtra apenas os pedidos feitos PELO PRÓPRIO ALUNO (email dele na col QUEM_SOLICITOU)
+                    # Coluna B (index 1) é QUEM_SOLICITOU
                     usos = df_log_total[df_log_total.iloc[:, 1].astype(str).str.strip().str.lower() == email]
                     diagnosticos_usados = len(usos)
             
@@ -510,6 +512,7 @@ else:
 
             if pode_gerar:
                 if st.button(msg_botao):
+                    # Registra uso: QUEM (Aluno) | PARA QUEM (Aluno)
                     if registrar_uso_diagnostico(email, email):
                         try:
                             genai.configure(api_key=st.secrets["gemini"]["api_key"])
@@ -529,6 +532,7 @@ else:
                 pdf_b = gerar_pdf_formatado(dados_aluno_pdf, top_gatilhos_pdf, st.session_state.ultimo_diagnostico)
                 st.download_button("📥 Baixar PDF", data=pdf_b, file_name="Diagnostico.pdf", mime="application/pdf")
 
+    # --- ACESSO ADMINISTRATIVO NO RODAPÉ ---
     st.markdown("<br><br><hr>", unsafe_allow_html=True)
     with st.expander("🔐 Acesso Restrito (Equipe)"):
         with st.form("login_admin_footer"):
