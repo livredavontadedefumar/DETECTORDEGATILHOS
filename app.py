@@ -5,7 +5,7 @@ from google.oauth2.service_account import Credentials
 import google.generativeai as genai
 from fpdf import FPDF
 import plotly.express as px
-from datetime import datetime, timedelta
+from datetime import datetime
 import base64
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
@@ -30,10 +30,10 @@ ADMIN_EMAIL = "livredavontadedefumar@gmail.com"
 ADMIN_PASS = "Mc2284**lC"
 
 # LISTA DE MADRINHAS E SENHA PADRÃO
+# A senha deve ser digitada exatamente assim (M maiúsculo)
 MADRINHAS_EMAILS = [
     "luannyfaustino53@gmail.com",
     "costaebastos@yahoo.com"
-    # Adicione novos emails aqui entre aspas e com virgula
 ]
 MADRINHA_PASS = "Madrinha2026*"
 
@@ -69,7 +69,6 @@ def carregar_todos_os_dados():
                 ws_log = sh.worksheet("LOG_DIAGNOSTICOS")
                 df_l = pd.DataFrame(ws_log.get_all_records())
             except:
-                # Cria estrutura de segurança se não existir
                 df_l = pd.DataFrame(columns=["DATA", "QUEM_SOLICITOU", "ALUNO_ANALISADO"])
             
             df_p = pd.DataFrame(ws_perfil.get_all_records())
@@ -88,32 +87,23 @@ def registrar_uso_diagnostico(quem_solicitou, aluno_analisado):
         try:
             ws_log = sh.worksheet("LOG_DIAGNOSTICOS")
             data_hora = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            # Salva QUEM pediu e PARA QUEM pediu
             ws_log.append_row([data_hora, quem_solicitou, aluno_analisado])
             return True
         except: return False
     return False
 
 def verificar_limite_madrinha(email_madrinha, email_aluno, df_log):
-    """ Verifica se a madrinha já estourou o limite de 2 diagnósticos para ESSE aluno em 7 dias """
-    if df_log.empty: return True # Se não tem log, pode gerar
-    
-    # Filtra ações dessa madrinha para esse aluno
+    if df_log.empty: return True
     mask_madrinha = df_log.iloc[:, 1].astype(str).str.strip().str.lower() == email_madrinha
     mask_aluno = df_log.iloc[:, 2].astype(str).str.strip().str.lower() == email_aluno
-    
     usos = df_log[mask_madrinha & mask_aluno].copy()
-    
     if usos.empty: return True
-    
-    # Converte datas e filtra últimos 7 dias
     usos['Data_Obj'] = pd.to_datetime(usos.iloc[:, 0], errors='coerce')
     limite_data = datetime.now() - timedelta(days=7)
     usos_recentes = usos[usos['Data_Obj'] >= limite_data]
-    
     if len(usos_recentes) >= 2:
-        return False # Bloqueia
-    return True # Libera
+        return False
+    return True
 
 def gerar_pdf_formatado(dados_perfil, top_gatilhos, texto_diagnostico):
     pdf = FPDF()
@@ -160,8 +150,7 @@ def filtrar_aluno(df, email_aluno):
         return df[df[col_email] == email_aluno]
     return pd.DataFrame()
 
-# --- INTELIGÊNCIA DE DADOS (HÍBRIDA) ---
-# ... (Mantendo as mesmas funções de categorização que já funcionam bem) ...
+# --- INTELIGÊNCIA DE DADOS ---
 def categorizar_geral_hibrida(texto):
     t = str(texto).upper().strip()
     if any(k in t for k in ['ACORDEI', 'ACORDANDO', 'LEVANTANDO', 'CAMA', 'JEJUM', 'MANHÃ']): return "PRIMEIRO DO DIA (ACORDAR)"
@@ -220,12 +209,9 @@ def categorizar_habitos_raio_x(texto):
     if len(t) > 2: return t
     return "NENHUM HÁBITO ESPECÍFICO"
 
-# --- FUNÇÃO DE DASHBOARD VISUAL ---
 def exibir_dashboard_visual(df_aluno):
     st.subheader("📊 Painel da Autoconsciência")
     st.markdown("---")
-    
-    # Layouts Mobile (Margens 50px)
     pie_layout = dict(margin=dict(l=0, r=0, t=50, b=0), legend=dict(orientation="h", yanchor="top", y=-0.1, xanchor="center", x=0.5))
     bar_layout = dict(margin=dict(l=0, r=0, t=50, b=0), yaxis=dict(autorange="reversed"))
     
@@ -265,7 +251,7 @@ def exibir_dashboard_visual(df_aluno):
             df_temp['Cat'] = df_temp.iloc[:, 7].apply(categorizar_habitos_raio_x)
             dados = df_temp['Cat'].value_counts().head(10).reset_index()
             dados.columns = ['Hábito', 'Qtd']
-            fig3 = px.bar(dados, x='Qtd', y='Hábito', orientation='h', text_auto=True, color_discrete_sequence=['#D2691E']) 
+            fig3 = px.bar(dados, x='Qtd', y='Hábito', orientation='h', text_auto=True, color_discrete_sequence=['#D2691E'])
             fig3.update_layout(**bar_layout)
             st.plotly_chart(fig3, use_container_width=True)
             st.markdown("---")
@@ -292,7 +278,7 @@ def exibir_dashboard_visual(df_aluno):
             fig5.update_traces(textposition='inside', textinfo='percent+label')
             st.plotly_chart(fig5, use_container_width=True)
             st.markdown("---")
-        
+
         if df_aluno.shape[1] > 6:
             st.markdown("##### 6. Emoções Propícias ao Consumo")
             df_temp = df_aluno.copy()
@@ -319,7 +305,7 @@ def exibir_dashboard_visual(df_aluno):
 
 # --- LÓGICA DE NAVEGAÇÃO ---
 if "admin_logado" not in st.session_state: st.session_state.admin_logado = False
-if "tipo_usuario" not in st.session_state: st.session_state.tipo_usuario = None # 'adm' ou 'madrinha'
+if "tipo_usuario" not in st.session_state: st.session_state.tipo_usuario = None 
 if "email_logado" not in st.session_state: st.session_state.email_logado = ""
 
 # SE ESTIVER LOGADO NO PAINEL (ADM OU MADRINHA)
@@ -553,7 +539,7 @@ else:
     with st.expander("🔐 Acesso Restrito (Equipe)"):
         with st.form("login_admin_footer"):
             email_adm = st.text_input("E-mail:", placeholder="admin@email.com").strip().lower()
-            pass_adm = st.text_input("Senha:", type="password", placeholder="******")
+            pass_adm = st.text_input("Senha:", type="password", placeholder="******").strip() # .strip() para segurança
             if st.form_submit_button("Entrar no Painel"):
                 # LOGIN FUNDADOR
                 if email_adm == ADMIN_EMAIL and pass_adm == ADMIN_PASS:
@@ -568,4 +554,4 @@ else:
                     st.session_state.email_logado = email_adm
                     st.rerun()
                 else:
-                    st.error("Dados incorretos ou e-mail não autorizado.")
+                    st.error("Dados incorretos. Verifique se digitou a senha com Letra Maiúscula.")
