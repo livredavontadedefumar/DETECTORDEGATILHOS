@@ -40,7 +40,7 @@ ADMIN_PASS = "Mc2284**lC"
 # LISTA DE MADRINHAS
 MADRINHAS_EMAILS = [
     "luannyfaustino53@gmail.com",
-    "costaebastos@yahoo.com"
+    "costaebastos@hotmail.com"
 ]
 MADRINHA_PASS = "Madrinha2026*"
 
