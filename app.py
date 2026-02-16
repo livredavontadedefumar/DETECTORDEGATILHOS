@@ -157,7 +157,40 @@ def filtrar_aluno(df, email_aluno):
         return df[df[col_email] == email_aluno]
     return pd.DataFrame()
 
-# --- INTELIGÊNCIA DE DADOS ---
+# --- INTELIGÊNCIA DE DADOS (AGENTE DUPLO) ---
+
+def analisar_intencoes_ocultas(dados_brutos, api_key):
+    """
+    PASSO 1: O Psicanalista de Dados.
+    Lê as linhas da planilha e descobre os gatilhos invisíveis.
+    """
+    genai.configure(api_key=api_key)
+    model_analista = genai.GenerativeModel('gemini-2.0-flash') 
+    
+    prompt_analista = f"""
+    Atue como um Especialista em Comportamento Humano e Análise de Dados de Vícios.
+    
+    ABAIXO ESTÃO OS DADOS BRUTOS DE UM FUMANTE (Extraídos de planilha):
+    ---------------------------------------------------
+    {dados_brutos}
+    ---------------------------------------------------
+    
+    SUA MISSÃO:
+    Ignore o óbvio. Eu não quero um resumo quantitativo. 
+    Quero que você cruze horários, sentimentos e atividades para encontrar as INTENÇÕES OCULTAS e os GATILHOS INVISÍVEIS.
+    Exemplo: Se a pessoa fuma sempre às 15h no trabalho e relata "Estresse", identifique se a verdadeira intenção é uma "Pausa para Socializar" ou "Fuga da Carga Mental".
+    
+    SAÍDA ESPERADA (Responda de forma direta em tópicos):
+    1. O Padrão Oculto (Correlação de Horário x Sentimento)
+    2. A Verdadeira Intenção Emocional (O que a pessoa realmente busca ao acender o cigarro?)
+    3. O Gatilho de Associação Primário (Café, Tédio, Pós-Refeição, etc.)
+    """
+    try:
+        response = model_analista.generate_content(prompt_analista)
+        return response.text
+    except Exception as e:
+        return f"Não foi possível aprofundar a análise: {e}"
+
 def categorizar_geral_hibrida(texto):
     t = str(texto).upper().strip()
     if any(k in t for k in ['ACORDEI', 'ACORDANDO', 'LEVANTANDO', 'CAMA', 'JEJUM', 'MANHÃ']): return "PRIMEIRO DO DIA (ACORDAR)"
@@ -386,11 +419,28 @@ if st.session_state.admin_logado:
             if st.button("🚀 GERAR DIAGNÓSTICO INDIVIDUAL"):
                 registrar_uso_diagnostico(st.session_state.email_logado, aluno_selecionado)
                 try:
-                    genai.configure(api_key=st.secrets["gemini"]["api_key"])
-                    model = genai.GenerativeModel('gemini-2.0-flash')
+                    api_key = st.secrets["gemini"]["api_key"]
                     h_adm = g_adm.iloc[:, [3, 6]].tail(15).to_dict('records')
-                    prompt_adm = f"Analise como Mentor IA: PERFIL {p_adm.tail(1).to_dict('records')} GATILHOS {h_adm}. Proibido sugerir vape/redução."
-                    with st.spinner("Gerando auditoria..."):
+                    
+                    # PASSO 1: Analisar Intenções Ocultas
+                    with st.spinner("🔍 Analisando padrões e intenções ocultas..."):
+                        insights_ocultos = analisar_intencoes_ocultas(h_adm, api_key)
+                    
+                    # PASSO 2: Gerar Diagnóstico Final
+                    with st.spinner("✍️ Escrevendo diagnóstico final..."):
+                        genai.configure(api_key=api_key)
+                        model = genai.GenerativeModel('gemini-2.0-flash')
+                        
+                        prompt_adm = f"""
+                        Analise como Mentor IA.
+                        DADOS DO PERFIL: {p_adm.tail(1).to_dict('records')}
+                        ÚLTIMOS GATILHOS (Brutos): {h_adm}
+                        
+                        🎯 ANÁLISE COMPORTAMENTAL PROFUNDA (Use os insights abaixo como base principal para seu texto):
+                        {insights_ocultos}
+                        
+                        Regra: Proibido sugerir vape ou estratégias de redução. Foque na quebra do padrão subconsciente revelado acima.
+                        """
                         resp = model.generate_content(prompt_adm)
                         st.session_state.diag_adm = resp.text
                         st.info(st.session_state.diag_adm)
@@ -474,8 +524,6 @@ else:
                 df_datas['Data_Limpa'] = pd.to_datetime(df_datas.iloc[:, 0], dayfirst=True, errors='coerce').dt.date
                 dias_unicos = df_datas['Data_Limpa'].nunique()
                 if not df_log_total.empty:
-                    # Filtra apenas os pedidos feitos PELO PRÓPRIO ALUNO (email dele na col QUEM_SOLICITOU)
-                    # Coluna B (index 1) é QUEM_SOLICITOU
                     usos = df_log_total[df_log_total.iloc[:, 1].astype(str).str.strip().str.lower() == email]
                     diagnosticos_usados = len(usos)
             
@@ -512,16 +560,30 @@ else:
 
             if pode_gerar:
                 if st.button(msg_botao):
-                    # Registra uso: QUEM (Aluno) | PARA QUEM (Aluno)
                     if registrar_uso_diagnostico(email, email):
                         try:
-                            genai.configure(api_key=st.secrets["gemini"]["api_key"])
-                            model = genai.GenerativeModel('gemini-2.0-flash')
+                            api_key = st.secrets["gemini"]["api_key"]
                             col_indices = [3, 6] if gatilhos.shape[1] > 6 else [0]
                             hist = gatilhos.iloc[:, col_indices].tail(15).to_dict('records')
-                            prompt = f"Analise como Mentor IA: DADOS {hist}. Explique Dopamina/Pavlov. Proibido Vape."
-                            with st.spinner("Analisando..."):
-                                resp = model.generate_content(prompt)
+                            
+                            # PASSO 1: Analisar Intenções Ocultas
+                            with st.spinner("🔍 Encontrando padrões e intenções invisíveis..."):
+                                insights_ocultos = analisar_intencoes_ocultas(hist, api_key)
+                            
+                            # PASSO 2: Gerar Diagnóstico Final
+                            with st.spinner("✍️ Preparando a carta do mentor..."):
+                                genai.configure(api_key=api_key)
+                                model = genai.GenerativeModel('gemini-2.0-flash')
+                                prompt_aluno = f"""
+                                Analise como Mentor IA.
+                                DADOS BRUTOS: {hist}
+                                
+                                🎯 ANÁLISE COMPORTAMENTAL (Use estes insights como o coração do seu diagnóstico):
+                                {insights_ocultos}
+                                
+                                Tarefa: Escreva a carta final acolhedora e estratégica baseada nisso. Explique Dopamina/Pavlov com base nas intenções ocultas encontradas. Proibido Vape.
+                                """
+                                resp = model.generate_content(prompt_aluno)
                                 st.session_state.ultimo_diagnostico = resp.text
                                 st.rerun()
                         except Exception as e: st.error(f"Erro: {e}")
