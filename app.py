@@ -215,7 +215,6 @@ def categorizar_habitos_raio_x(texto):
 def analisar_intencoes_ocultas(dados_brutos, dados_perfil):
     """
     PASSO 1: O ANALISTA DE DADOS (Frio e Calculista)
-    Apenas identifica padrões, sem dar conselhos.
     """
     genai.configure(api_key=st.secrets["gemini"]["api_key"])
     model_analista = genai.GenerativeModel('gemini-2.0-flash')
@@ -438,9 +437,10 @@ if st.session_state.admin_logado:
                         Escreva um diagnóstico acolhedor, mas FIRME e ESTRATÉGICO.
                         
                         REGRAS DE OURO DO MÉTODO (Obrigatório):
-                        1. FASE ATUAL = PREPARAÇÃO: Deixe claro que NÃO é para parar de fumar hoje. Hoje estamos mapeando o inimigo.
-                        2. PROTOCOLO ÁLCOOL: Recomendamos afastamento total de bebidas alcoólicas por 12 MESES (é a maior ponte de recaída).
-                        3. PROTOCOLO CAFÉ: Se o analista detectou café+cigarro, recomende suspender o café por 30 DIAS após a parada (desmame).
+                        1. FASE ATUAL = PREPARAÇÃO: Deixe claro que NÃO é para parar de fumar hoje.
+                        2. PROTOCOLO DETECTOR: O aluno DEVE continuar usando este App/Detector até o último cigarro. Não sugira anotações manuais ou cadernos. Diga que só assim teremos o diagnóstico final atualizado.
+                        3. PROTOCOLO ÁLCOOL: Recomendamos afastamento total de bebidas alcoólicas por 12 MESES.
+                        4. PROTOCOLO CAFÉ: Se o analista detectou café+cigarro, recomende suspender o café por 30 DIAS após a parada.
                         
                         FERRAMENTAS PRÁTICAS (Escolha 1 baseada no perfil):
                         - Se for HÁBITO AUTOMÁTICO (ex: acordar): Use "Elemento Neutro/Confusão" (Ex: Escovar dentes com a outra mão, mudar o trajeto, beber água gelada em goles médios).
@@ -556,7 +556,7 @@ else:
             st.subheader("🧠 Inteligência Comportamental")
             
             pode_gerar = False
-            msg_botao = "🚀 GERAR MEU DIAGNÓSTICO (MADRINHA-IA)"
+            msg_botao = "🚀 GERAR MEU DIAGNÓSTICO (COM FERRAMENTAS PRÁTICAS)"
             
             if dias_unicos < 7:
                 st.warning(f"🔒 Faltam {7 - dias_unicos} dias de registro.")
@@ -598,8 +598,9 @@ else:
                                 
                                 REGRAS DO MÉTODO:
                                 1. NÃO MANDAR PARAR HOJE. Hoje é preparação e estratégia.
-                                2. CAFEÍNA: Se houver associação, recomende suspender café por 30 dias PÓS-PARADA.
-                                3. ÁLCOOL: Recomende suspensão total por 12 meses.
+                                2. PROTOCOLO OBRIGATÓRIO: Continue registrando TODOS os cigarros no Detector (App) até o último dia. Essa é a única forma de gerar o mapa final. (NÃO sugira cadernos/papel).
+                                3. CAFEÍNA: Se houver associação, recomende suspender café por 30 dias PÓS-PARADA.
+                                4. ÁLCOOL: Recomende suspensão total por 12 meses.
                                 
                                 FERRAMENTA PRÁTICA (Escolha 1):
                                 - "Elemento Neutro" (Água gelada, Mudar trajeto) para HÁBITOS AUTOMÁTICOS.
