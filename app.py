@@ -15,14 +15,11 @@ st.set_page_config(
     layout="wide",
 )
 
-# --- CSS V23.0 (FORÇAR RODAPÉ VISÍVEL) ---
+# --- CSS (FORÇAR RODAPÉ VISÍVEL) ---
 hide_st_style = """
             <style>
-            /* Esconde o Menu Superior (Hamburguer) e a Barra Colorida do Topo */
             #MainMenu {visibility: hidden;}
             header {visibility: hidden;}
-            
-            /* FORÇA O RODAPÉ A APARECER (OVERRIDE) */
             footer {
                 visibility: visible !important;
                 display: block !important;
@@ -37,14 +34,13 @@ st.markdown(hide_st_style, unsafe_allow_html=True)
 ADMIN_EMAIL = "livredavontadedefumar@gmail.com"
 ADMIN_PASS = "Mc2284**lC"
 
-# LISTA DE MADRINHAS
 MADRINHAS_EMAILS = [
     "luannyfaustino53@gmail.com",
     "costaebastos@hotmail.com"
 ]
 MADRINHA_PASS = "Madrinha2026*"
 
-# --- FUNÇÃO AUXILIAR PARA IMAGEM HTML ---
+# --- FUNÇÕES DE ARQUIVO E CONEXÃO ---
 def get_image_base64(path):
     try:
         with open(path, "rb") as image_file:
@@ -53,7 +49,6 @@ def get_image_base64(path):
     except Exception:
         return None
 
-# --- CONEXÃO GOOGLE SHEETS ---
 def conectar_planilha():
     try:
         scope = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
@@ -87,7 +82,7 @@ def carregar_todos_os_dados():
 
 df_perfil_total, df_gatilhos_total, df_log_total = carregar_todos_os_dados()
 
-# --- FUNÇÕES ÚTEIS ---
+# --- FUNÇÕES ÚTEIS E LOG ---
 def registrar_uso_diagnostico(quem_solicitou, aluno_analisado):
     sh = conectar_planilha()
     if sh:
@@ -141,7 +136,6 @@ def gerar_pdf_formatado(dados_perfil, top_gatilhos, texto_diagnostico):
     pdf.cell(0, 10, txt="DIAGNÓSTICO ESTRATÉGICO", ln=True)
     pdf.set_font("Arial", "", 11)
     pdf.set_text_color(0, 0, 0)
-    # Correção de caracteres
     texto_limpo = texto_diagnostico.encode('latin-1', 'replace').decode('latin-1')
     pdf.multi_cell(0, 7, txt=texto_limpo)
     pdf.ln(15)
@@ -158,7 +152,7 @@ def filtrar_aluno(df, email_aluno):
         return df[df[col_email] == email_aluno]
     return pd.DataFrame()
 
-# --- INTELIGÊNCIA DE DADOS (CATEGORIZAÇÃO) ---
+# --- INTELIGÊNCIA DE CATEGORIZAÇÃO (HÍBRIDA) ---
 def categorizar_geral_hibrida(texto):
     t = str(texto).upper().strip()
     if any(k in t for k in ['ACORDEI', 'ACORDANDO', 'LEVANTANDO', 'CAMA', 'JEJUM', 'MANHÃ']): return "PRIMEIRO DO DIA (ACORDAR)"
@@ -217,11 +211,10 @@ def categorizar_habitos_raio_x(texto):
     if len(t) > 2: return t
     return "NENHUM HÁBITO ESPECÍFICO"
 
-# --- INTELIGÊNCIA ANALÍTICA (O NOVO CÉREBRO) ---
+# --- INTELIGÊNCIA ANALÍTICA (PASSO 1: O ESPIÃO) ---
 def analisar_intencoes_ocultas(dados_brutos, dados_perfil):
     """
-    PASSO 1: O ANALISTA DE DADOS
-    Esta função usa a IA para ler as entrelinhas. Não gera a carta, gera os INSIGHTS.
+    PASSO 1: O ANALISTA DE DADOS (Não alterado - Foco em Diagnóstico Puro)
     """
     genai.configure(api_key=st.secrets["gemini"]["api_key"])
     model_analista = genai.GenerativeModel('gemini-2.0-flash')
@@ -236,8 +229,7 @@ def analisar_intencoes_ocultas(dados_brutos, dados_perfil):
     {dados_brutos}
     
     SUA MISSÃO:
-    Analise friamente estes dados. Eu NÃO quero conselhos motivacionais.
-    Eu quero que você identifique PADRÕES OCULTOS que uma leitura superficial não vê.
+    Analise friamente estes dados. Identifique PADRÕES OCULTOS.
     
     RESPONDA EM TÓPICOS CURTOS E DIRETOS:
     1. A verdadeira "Intenção Oculta" (Ex: Ele diz que é ansiedade, mas o horário sugere tédio).
@@ -382,11 +374,10 @@ if st.session_state.admin_logado:
                     model = genai.GenerativeModel('gemini-2.0-flash')
                     top_g = df_gatilhos_total.iloc[:, 3].apply(categorizar_geral_hibrida).value_counts().head(10).to_dict()
                     top_e = df_gatilhos_total.iloc[:, 6].apply(lambda x: str(x).upper()).value_counts().head(10).to_dict()
-                    top_h = df_gatilhos_total.iloc[:, 7].apply(categorizar_habitos_raio_x).value_counts().head(10).to_dict()
                     prompt_turma = f"""
-                    Você é o Estrategista Chefe do 'Livre da Vontade'. Analise:
-                    TOP GATILHOS: {top_g} | TOP EMOÇÕES: {top_e} | TOP HÁBITOS: {top_h}
-                    TAREFA: Crie um Dossiê do Avatar Coletivo. Identifique o "Vilão nº 1", descreva o "Ciclo de Dor" e sugira 3 aulas.
+                    Você é o Estrategista Chefe. Analise:
+                    TOP GATILHOS: {top_g} | TOP EMOÇÕES: {top_e}
+                    TAREFA: Dossiê do Avatar Coletivo. Vilão nº 1 e Soluções.
                     """
                     with st.spinner("Gerando..."):
                         resp = model.generate_content(prompt_turma)
@@ -420,44 +411,49 @@ if st.session_state.admin_logado:
                 msg_bloqueio = "⚠️ Limite atingido: Você já gerou 2 diagnósticos para este aluno nos últimos 7 dias. Baixe o PDF anterior."
 
         if pode_gerar_diag:
-            if st.button("🚀 GERAR DIAGNÓSTICO INDIVIDUAL (CHAIN OF THOUGHT)"):
+            if st.button("🚀 GERAR DIAGNÓSTICO COM PNL & META PADRÃO"):
                 registrar_uso_diagnostico(st.session_state.email_logado, aluno_selecionado)
                 try:
-                    # PREPARAÇÃO DOS DADOS
                     perfil_dict = p_adm.tail(1).to_dict('records')
-                    h_adm = g_adm.iloc[:, [0, 2, 3, 6, 7]].tail(20).to_dict('records') # Pegando mais colunas para o analista
+                    h_adm = g_adm.iloc[:, [0, 2, 3, 6, 7]].tail(20).to_dict('records') 
                     
-                    # PASSO 1: O ANALISTA
-                    with st.spinner("Passo 1/2: Analista comportamental investigando padrões ocultos..."):
+                    # PASSO 1: ANALISTA (FRIO)
+                    with st.spinner("Passo 1/2: Analista comportamental investigando intenções ocultas..."):
                         analise_profunda = analisar_intencoes_ocultas(h_adm, perfil_dict)
                     
-                    # PASSO 2: O MENTOR
-                    with st.spinner("Passo 2/2: Mentor Estratégico redigindo o plano de ação..."):
+                    # PASSO 2: MENTOR PNL (TRANSFORMACIONAL)
+                    with st.spinner("Passo 2/2: Especialista em Meta Padrão prescrevendo intervenções..."):
                         genai.configure(api_key=st.secrets["gemini"]["api_key"])
                         model = genai.GenerativeModel('gemini-2.0-flash')
                         
                         prompt_mentor = f"""
-                        Atue como o Mentor Sênior do projeto 'Livre da Vontade'.
+                        Atue como um Master Practitioner em PNL e Especialista em 'Meta Padrão' para controle de vícios.
                         
-                        DADOS DO ALUNO:
-                        {perfil_dict}
+                        DADOS DO ALUNO: {perfil_dict}
                         
-                        DADOS DE CONSUMO BRUTO:
-                        {h_adm}
-                        
-                        >>> RELATÓRIO DE INTELIGÊNCIA COMPORTAMENTAL (USE ISSO COMO BASE):
+                        >>> RELATÓRIO DO ANALISTA (SEUS DADOS DE ENTRADA):
                         {analise_profunda}
-                        <<< FIM DO RELATÓRIO
+                        <<<
                         
-                        SUA TAREFA:
-                        Escreva uma carta direta, empática e ESTRATÉGICA para o aluno.
-                        Não use frases genéricas. Use as descobertas do Relatório de Inteligência para mostrar que você o entende profundamente.
-                        Explique porque ele fuma nos horários detectados e dê 1 exercício prático para quebrar esse ciclo específico.
+                        SUA MISSÃO - ESCREVER O PLANO DE AÇÃO:
+                        Escreva uma carta hipnótica e direta.
+                        
+                        REGRAS OBRIGATÓRIAS DO META PADRÃO:
+                        1. Se houver 'Ansiedade/Estresse': Ensine a técnica da 'Respiração Quadrada' (4-4-4-4) ou 'Ancoragem de Calma'.
+                        2. Se houver 'Hábito Automático': Ensine uma 'Quebra de Padrão Fisiológica' (ex: mudar a postura, estalar um elástico).
+                        3. Se houver 'Fuga Emocional': Utilize 'Ressignificação' (Reframing) para mudar a percepção do sentimento.
+                        
+                        O TEXTO DEVE CONTER:
+                        - Uma validação profunda do estado atual dele (Rapport).
+                        - A explicação lógica do ciclo (Dopamina/Pavlov).
+                        - **1 EXERCÍCIO PRÁTICO DE PNL/META PADRÃO** (Passo a passo simples para ele fazer na hora da fissura).
+                        
+                        Tom de voz: Seguro, Acolhedor e Persuasivo.
                         """
                         
                         resp = model.generate_content(prompt_mentor)
                         st.session_state.diag_adm = resp.text
-                        st.success("Diagnóstico Profundo Gerado com Sucesso!")
+                        st.success("Diagnóstico com PNL Gerado!")
                         st.markdown(st.session_state.diag_adm)
                         
                 except Exception as e: st.error(f"Erro: {e}")
@@ -508,12 +504,12 @@ else:
             with st.expander("📲 Como instalar o App no celular"):
                 st.markdown("""
                 **Para iPhone (iOS):**
-                1. No Safari, clique no botão de **Compartilhar** (quadrado com seta).
+                1. No Safari, clique no botão de **Compartilhar**.
                 2. Role para baixo e toque em **"Adicionar à Tela de Início"**.
                 
                 **Para Android:**
-                1. No Chrome, clique nos **3 pontinhos** no canto superior.
-                2. Toque em **"Adicionar à Tela Inicial"** ou **"Instalar Aplicativo"**.
+                1. No Chrome, clique nos **3 pontinhos**.
+                2. Toque em **"Instalar Aplicativo"**.
                 """)
 
             dados_aluno_pdf = {}
@@ -558,7 +554,7 @@ else:
             st.subheader("🧠 Inteligência Comportamental")
             
             pode_gerar = False
-            msg_botao = "🚀 GERAR DIAGNÓSTICO DA MADRINHA-IA"
+            msg_botao = "🚀 GERAR MEU DIAGNÓSTICO (COM FERRAMENTAS PRÁTICAS)"
             
             if dias_unicos < 7:
                 st.warning(f"🔒 Faltam {7 - dias_unicos} dias de registro.")
@@ -577,33 +573,33 @@ else:
                 if st.button(msg_botao):
                     if registrar_uso_diagnostico(email, email):
                         try:
-                            # PREPARA DADOS
                             col_indices = [0, 2, 3, 6, 7] if gatilhos.shape[1] > 7 else [0, 3]
                             hist_raw = gatilhos.iloc[:, col_indices].tail(20).to_dict('records')
                             perfil_raw = perfil.tail(1).to_dict('records') if not perfil.empty else {}
 
-                            # PASSO 1: ANALISTA
-                            with st.spinner("Passo 1/2: Analisando intenções ocultas..."):
+                            with st.spinner("Passo 1/2: Analisando padrões comportamentais..."):
                                 analise_oculta = analisar_intencoes_ocultas(hist_raw, perfil_raw)
 
-                            # PASSO 2: MENTOR
-                            with st.spinner("Passo 2/2: Escrevendo diagnóstico estratégico..."):
+                            with st.spinner("Passo 2/2: Criando plano com ferramentas de PNL..."):
                                 genai.configure(api_key=st.secrets["gemini"]["api_key"])
                                 model = genai.GenerativeModel('gemini-2.0-flash')
+                                
                                 prompt_final = f"""
-                                Você é o Mentor do 'Livre da Vontade'.
+                                Você é o Mentor Pessoal (IA) especialista em Neurociência e PNL.
                                 
-                                DADOS DO ALUNO:
-                                {perfil_raw}
-                                
-                                >>> ANÁLISE TÉCNICA DE COMPORTAMENTO (USE ISSO COMO GUIA):
+                                >>> ANÁLISE DE COMPORTAMENTO DO ALUNO (INPUT):
                                 {analise_oculta}
                                 <<<
                                 
                                 TAREFA:
-                                Escreva o diagnóstico para o PDF.
-                                Use tom acolhedor, mas firme. Explique a Dopamina e Pavlov baseado nos padrões encontrados acima.
+                                Escreva um diagnóstico acolhedor e prático.
+                                Baseado na análise acima, escolha UMA ferramenta de PNL/Meta Padrão:
+                                - Se o problema for Ansiedade: Ensine Respiração Quadrada ou Ancoragem.
+                                - Se o problema for Hábito Automático: Ensine Quebra de Padrão (Interrupção).
+                                
+                                Explique como aplicar a técnica no dia a dia.
                                 """
+                                
                                 resp = model.generate_content(prompt_final)
                                 st.session_state.ultimo_diagnostico = resp.text
                                 st.rerun()
@@ -615,7 +611,6 @@ else:
                 pdf_b = gerar_pdf_formatado(dados_aluno_pdf, top_gatilhos_pdf, st.session_state.ultimo_diagnostico)
                 st.download_button("📥 Baixar PDF", data=pdf_b, file_name="Diagnostico.pdf", mime="application/pdf")
 
-    # --- ACESSO ADMINISTRATIVO NO RODAPÉ ---
     st.markdown("<br><br><hr>", unsafe_allow_html=True)
     with st.expander("🔐 Acesso Restrito (Equipe)"):
         with st.form("login_admin_footer"):
@@ -633,4 +628,4 @@ else:
                     st.session_state.email_logado = email_adm
                     st.rerun()
                 else:
-                    st.error("Dados incorretos. Verifique se digitou a senha com Letra Maiúscula.")
+                    st.error("Dados incorretos.")
