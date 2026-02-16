@@ -211,31 +211,30 @@ def categorizar_habitos_raio_x(texto):
     if len(t) > 2: return t
     return "NENHUM HÁBITO ESPECÍFICO"
 
-# --- INTELIGÊNCIA ANALÍTICA (PASSO 1: O ESPIÃO) ---
+# --- INTELIGÊNCIA ANALÍTICA (PASSO 1: O DETETIVE) ---
 def analisar_intencoes_ocultas(dados_brutos, dados_perfil):
     """
-    PASSO 1: O ANALISTA DE DADOS (Não alterado - Foco em Diagnóstico Puro)
+    PASSO 1: O ANALISTA DE DADOS (Frio e Calculista)
+    Apenas identifica padrões, sem dar conselhos.
     """
     genai.configure(api_key=st.secrets["gemini"]["api_key"])
     model_analista = genai.GenerativeModel('gemini-2.0-flash')
     
     prompt_analista = f"""
-    Atue como um Especialista Sênior em Comportamento Humano e Ciência de Dados do Vício.
+    Atue como um Especialista em Ciência de Dados do Vício.
     
-    PERFIL DO USUÁRIO:
-    {dados_perfil}
-    
-    DADOS DE CONSUMO RECENTE (Data, Local, Gatilho, Sentimento, Hábito):
-    {dados_brutos}
+    PERFIL DO USUÁRIO: {dados_perfil}
+    DADOS DE CONSUMO RECENTE: {dados_brutos}
     
     SUA MISSÃO:
-    Analise friamente estes dados. Identifique PADRÕES OCULTOS.
+    Identifique PADRÕES OCULTOS neste comportamento.
     
-    RESPONDA EM TÓPICOS CURTOS E DIRETOS:
-    1. A verdadeira "Intenção Oculta" (Ex: Ele diz que é ansiedade, mas o horário sugere tédio).
-    2. O "Gatilho Mestre" (Qual a situação que dispara a vontade mais forte?).
-    3. Correlação Horário x Emoção (Ex: Picos de estresse sempre às 18h).
-    4. Nível de Automatismo (Quanto ele está fumando sem perceber?).
+    RESPONDA EM TÓPICOS CURTOS:
+    1. Intenção Oculta (O que ele busca de verdade? Tédio? Fuga? Prazer?).
+    2. Gatilho Mestre (Qual a situação que dispara a maior vontade?).
+    3. Correlação Horário x Emoção.
+    4. Ele consome Café ou Álcool associado ao fumo? (Sim/Não).
+    5. O consumo é mais Automático (Hábito) ou Emocional (Fissura)?
     """
     
     try:
@@ -411,7 +410,7 @@ if st.session_state.admin_logado:
                 msg_bloqueio = "⚠️ Limite atingido: Você já gerou 2 diagnósticos para este aluno nos últimos 7 dias. Baixe o PDF anterior."
 
         if pode_gerar_diag:
-            if st.button("🚀 GERAR DIAGNÓSTICO COM PNL & META PADRÃO"):
+            if st.button("🚀 GERAR DIAGNÓSTICO ESTRATÉGICO"):
                 registrar_uso_diagnostico(st.session_state.email_logado, aluno_selecionado)
                 try:
                     perfil_dict = p_adm.tail(1).to_dict('records')
@@ -421,39 +420,42 @@ if st.session_state.admin_logado:
                     with st.spinner("Passo 1/2: Analista comportamental investigando intenções ocultas..."):
                         analise_profunda = analisar_intencoes_ocultas(h_adm, perfil_dict)
                     
-                    # PASSO 2: MENTOR PNL (TRANSFORMACIONAL)
-                    with st.spinner("Passo 2/2: Especialista em Meta Padrão prescrevendo intervenções..."):
+                    # PASSO 2: MENTOR ESTRATÉGICO (MÉTODO LIVRE DA VONTADE)
+                    with st.spinner("Passo 2/2: Especialista do Método criando estratégia..."):
                         genai.configure(api_key=st.secrets["gemini"]["api_key"])
                         model = genai.GenerativeModel('gemini-2.0-flash')
                         
                         prompt_mentor = f"""
-                        Atue como um Master Practitioner em PNL e Especialista em 'Meta Padrão' para controle de vícios.
+                        Atue como o MENTOR SÊNIOR do método "Livre da Vontade de Fumar".
                         
                         DADOS DO ALUNO: {perfil_dict}
                         
-                        >>> RELATÓRIO DO ANALISTA (SEUS DADOS DE ENTRADA):
+                        >>> RELATÓRIO DO ANALISTA (INPUT):
                         {analise_profunda}
                         <<<
                         
                         SUA MISSÃO - ESCREVER O PLANO DE AÇÃO:
-                        Escreva uma carta hipnótica e direta.
+                        Escreva um diagnóstico acolhedor, mas FIRME e ESTRATÉGICO.
                         
-                        REGRAS OBRIGATÓRIAS DO META PADRÃO:
-                        1. Se houver 'Ansiedade/Estresse': Ensine a técnica da 'Respiração Quadrada' (4-4-4-4) ou 'Ancoragem de Calma'.
-                        2. Se houver 'Hábito Automático': Ensine uma 'Quebra de Padrão Fisiológica' (ex: mudar a postura, estalar um elástico).
-                        3. Se houver 'Fuga Emocional': Utilize 'Ressignificação' (Reframing) para mudar a percepção do sentimento.
+                        REGRAS DE OURO DO MÉTODO (Obrigatório):
+                        1. FASE ATUAL = PREPARAÇÃO: Deixe claro que NÃO é para parar de fumar hoje. Hoje estamos mapeando o inimigo.
+                        2. PROTOCOLO ÁLCOOL: Recomendamos afastamento total de bebidas alcoólicas por 12 MESES (é a maior ponte de recaída).
+                        3. PROTOCOLO CAFÉ: Se o analista detectou café+cigarro, recomende suspender o café por 30 DIAS após a parada (desmame).
                         
-                        O TEXTO DEVE CONTER:
-                        - Uma validação profunda do estado atual dele (Rapport).
-                        - A explicação lógica do ciclo (Dopamina/Pavlov).
-                        - **1 EXERCÍCIO PRÁTICO DE PNL/META PADRÃO** (Passo a passo simples para ele fazer na hora da fissura).
+                        FERRAMENTAS PRÁTICAS (Escolha 1 baseada no perfil):
+                        - Se for HÁBITO AUTOMÁTICO (ex: acordar): Use "Elemento Neutro/Confusão" (Ex: Escovar dentes com a outra mão, mudar o trajeto, beber água gelada em goles médios).
+                        - Se for FISSURA/PENSAMENTO (ex: "só um traguinho"): Use "Elemento Punitivo/Desconforto" (Ex: Segurar gelo na mão até doer, arrumar uma gaveta bagunçada, fazer prancha no chão).
+                        - Se for ANSIEDADE/ENERGIA: Use "Dissipação" (Ex: 20 agachamentos, Respiração 4-4-4-4).
                         
-                        Tom de voz: Seguro, Acolhedor e Persuasivo.
+                        LINGUAGEM:
+                        - Não cite autores (Pavlov, Skinner). Fale a língua do aluno.
+                        - Use "Técnica de Quebra de Padrão" em vez de termos técnicos.
+                        - Seja criativo nas tarefas neutras/punitivas usando os dados da planilha.
                         """
                         
                         resp = model.generate_content(prompt_mentor)
                         st.session_state.diag_adm = resp.text
-                        st.success("Diagnóstico com PNL Gerado!")
+                        st.success("Diagnóstico Estratégico Gerado!")
                         st.markdown(st.session_state.diag_adm)
                         
                 except Exception as e: st.error(f"Erro: {e}")
@@ -580,24 +582,31 @@ else:
                             with st.spinner("Passo 1/2: Analisando padrões comportamentais..."):
                                 analise_oculta = analisar_intencoes_ocultas(hist_raw, perfil_raw)
 
-                            with st.spinner("Passo 2/2: Criando plano com ferramentas de PNL..."):
+                            with st.spinner("Passo 2/2: Criando plano de ação personalizado..."):
                                 genai.configure(api_key=st.secrets["gemini"]["api_key"])
                                 model = genai.GenerativeModel('gemini-2.0-flash')
                                 
                                 prompt_final = f"""
-                                Você é o Mentor Pessoal (IA) especialista em Neurociência e PNL.
+                                Você é o MENTOR IA do Método "Livre da Vontade".
                                 
-                                >>> ANÁLISE DE COMPORTAMENTO DO ALUNO (INPUT):
+                                >>> ANÁLISE DE COMPORTAMENTO DO ALUNO:
                                 {analise_oculta}
                                 <<<
                                 
                                 TAREFA:
-                                Escreva um diagnóstico acolhedor e prático.
-                                Baseado na análise acima, escolha UMA ferramenta de PNL/Meta Padrão:
-                                - Se o problema for Ansiedade: Ensine Respiração Quadrada ou Ancoragem.
-                                - Se o problema for Hábito Automático: Ensine Quebra de Padrão (Interrupção).
+                                Escreva um diagnóstico prático para o PDF.
                                 
-                                Explique como aplicar a técnica no dia a dia.
+                                REGRAS DO MÉTODO:
+                                1. NÃO MANDAR PARAR HOJE. Hoje é preparação e estratégia.
+                                2. CAFEÍNA: Se houver associação, recomende suspender café por 30 dias PÓS-PARADA.
+                                3. ÁLCOOL: Recomende suspensão total por 12 meses.
+                                
+                                FERRAMENTA PRÁTICA (Escolha 1):
+                                - "Elemento Neutro" (Água gelada, Mudar trajeto) para HÁBITOS AUTOMÁTICOS.
+                                - "Elemento Punitivo" (Segurar gelo, Arrumar gaveta) para FISSURA/PENSAMENTO.
+                                - "Dissipação" (Agachamento, Respiração Quadrada) para ANSIEDADE.
+                                
+                                Seja criativo e use dados do perfil para personalizar a tarefa.
                                 """
                                 
                                 resp = model.generate_content(prompt_final)
