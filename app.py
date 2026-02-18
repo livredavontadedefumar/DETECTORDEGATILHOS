@@ -211,11 +211,70 @@ def categorizar_habitos_raio_x(texto):
     if len(t) > 2: return t
     return "NENHUM HÁBITO ESPECÍFICO"
 
-# --- INTELIGÊNCIA ANALÍTICA (PASSO 1: O DETETIVE) ---
+# --- INTELIGÊNCIA ANALÍTICA (O MEGA PROMPT - PAVLOV/ALEXANDER/OVERDURF) ---
+def gerar_analise_comportamental_avancada(dados_brutos, dados_perfil):
+    """
+    Gera o Raio-X Comportamental usando o Mega Prompt do Especialista.
+    """
+    genai.configure(api_key=st.secrets["gemini"]["api_key"])
+    model_analista = genai.GenerativeModel('gemini-2.0-flash')
+    
+    # Prepara os dados brutos para string
+    try:
+        dados_str = str(dados_brutos)
+    except:
+        dados_str = "Dados não formatáveis."
+
+    prompt_especialista = f"""
+    # ATUE COMO:
+    Você é um Especialista Sênior em Ciências Comportamentais e Cessação de Tabagismo, com foco em Neurociência, Condicionamento Clássico (Pavlov), Psicologia Ambiental (Bruce Alexander/Rat Park) e Padrões de Hipnose Ericksoniana (Meta Padrão).
+
+    # O CONTEXTO:
+    Eu tenho um produto chamado "Detector de Gatilhos". O meu mentorado rastreou cada cigarro fumado.
+    PERFIL DO MENTORADO: {dados_perfil}
+    
+    # A SUA MISSÃO:
+    Analise os dados brutos abaixo e gere um "Raio-X Comportamental" profundo. Não quero obviedades. Quero que encontre os padrões ocultos, as âncoras emocionais e as falhas no ambiente.
+
+    # ESTRUTURA DA ANÁLISE (Use estas 4 Lentes):
+
+    1. 🔬 A Lente de Pavlov (Gatilhos Mecânicos):
+       * Identifique os "Gatilhos Geográficos" (Onde ele fuma sempre? O local virou uma âncora?).
+       * Identifique os "Gatilhos de Sequência" (O que acontece *imediatamente* antes? Café? Briga? Tédio?).
+
+    2. 🐀 A Lente de Bruce Alexander (O "Rat Park"/Ambiente):
+       * Analise as Emoções. O cigarro está a substituir que necessidade humana? (Conexão, Alívio de Stress, Fuga de uma "gaiola" emocional?).
+       * Qual é a "Gaiola" atual desse mentorado? (Solidão, Trabalho excessivo, Tédio?).
+
+    3. 🌀 A Lente do Meta Padrão (A Estrutura do Problema):
+       * Qual é a "Intenção Positiva" do cigarro para ele? (Ex: Pausa, Proteção, Recompensa).
+       * Qual é o "Estado Problema" (ex: Ansiedade) e qual o "Estado Desejado" (ex: Paz) que ele busca através do fumo?
+
+    4. 🛠️ PLANO DE AÇÃO TÁTICO (Sugira 3 Micro-Ferramentas):
+       * Sugira 1 ferramenta para quebrar o gatilho geográfico.
+       * Sugira 1 ferramenta de respiração ou fisiológica para o momento da fissura.
+       * Sugira 1 Metáfora Isomorfa (uma história curta ou imagem) que eu possa usar para ressignificar o vício dele.
+
+    # DIRETRIZES DE OURO (O QUE NÃO FAZER):
+    1. 🚫 NÃO chame o vício ou a fissura de "Inimigo", "Monstro" ou algo negativo. Use termos como "Sinal de Alerta", "Pedido de Pausa" ou "Mecanismo de Defesa Antigo". (Princípio da Intenção Positiva).
+    2. 🚫 NÃO sugira cortes radicais de Café ou Álcool (como "pare por 12 meses") a menos que seja estritamente necessário. Sugira "Substituições Inteligentes" ou reduções graduais.
+    3. 🚫 NÃO aponte apenas o gatilho (ex: "O quintal é o gatilho"). Dê uma SOLUÇÃO para o gatilho (ex: "Mude a cadeira de lugar", "Crie uma zona livre no quintal").
+
+    # TOM DE VOZ:
+    Profissional, empático, analítico e motivador. Fale diretamente comigo, o treinador.
+
+    # DADOS DO MENTORADO PARA ANÁLISE:
+    {dados_str}
+    """
+    
+    try:
+        response = model_analista.generate_content(prompt_especialista)
+        return response.text
+    except Exception as e:
+        return f"Erro na análise profunda: {str(e)}"
+
+# --- INTELIGÊNCIA ANALÍTICA SIMPLIFICADA (PASSO 1 ANTIGO - MANTIDO PARA OUTROS USOS SE NECESSÁRIO) ---
 def analisar_intencoes_ocultas(dados_brutos, dados_perfil):
-    """
-    PASSO 1: O ANALISTA DE DADOS (Frio e Calculista)
-    """
     genai.configure(api_key=st.secrets["gemini"]["api_key"])
     model_analista = genai.GenerativeModel('gemini-2.0-flash')
     
@@ -412,50 +471,16 @@ if st.session_state.admin_logado:
             if st.button("🚀 GERAR DIAGNÓSTICO ESTRATÉGICO"):
                 registrar_uso_diagnostico(st.session_state.email_logado, aluno_selecionado)
                 try:
-                    perfil_dict = p_adm.tail(1).to_dict('records')
+                    perfil_dict = p_adm.tail(1).to_dict('records')[0] if not p_adm.empty else {}
+                    # Pega os dados brutos para o Mega Prompt
                     h_adm = g_adm.iloc[:, [0, 2, 3, 6, 7]].tail(20).to_dict('records') 
                     
-                    # PASSO 1: ANALISTA (FRIO)
-                    with st.spinner("Passo 1/2: Analista comportamental investigando intenções ocultas..."):
-                        analise_profunda = analisar_intencoes_ocultas(h_adm, perfil_dict)
-                    
-                    # PASSO 2: MENTOR ESTRATÉGICO (MÉTODO LIVRE DA VONTADE)
-                    with st.spinner("Passo 2/2: Especialista do Método criando estratégia..."):
-                        genai.configure(api_key=st.secrets["gemini"]["api_key"])
-                        model = genai.GenerativeModel('gemini-2.0-flash')
+                    # --- INTEGRAÇÃO DO MEGA PROMPT (Substituindo o fluxo antigo de 2 passos) ---
+                    with st.spinner("O Especialista está analisando com as lentes de Pavlov, Alexander e Overdurf..."):
+                        analise_especialista = gerar_analise_comportamental_avancada(h_adm, perfil_dict)
                         
-                        prompt_mentor = f"""
-                        Atue como o MENTOR SÊNIOR do método "Livre da Vontade de Fumar".
-                        
-                        DADOS DO ALUNO: {perfil_dict}
-                        
-                        >>> RELATÓRIO DO ANALISTA (INPUT):
-                        {analise_profunda}
-                        <<<
-                        
-                        SUA MISSÃO - ESCREVER O PLANO DE AÇÃO:
-                        Escreva um diagnóstico acolhedor, mas FIRME e ESTRATÉGICO.
-                        
-                        REGRAS DE OURO DO MÉTODO (Obrigatório):
-                        1. FASE ATUAL = PREPARAÇÃO: Deixe claro que NÃO é para parar de fumar hoje.
-                        2. PROTOCOLO DETECTOR: O aluno DEVE continuar usando este App/Detector até o último cigarro. Não sugira anotações manuais ou cadernos. Diga que só assim teremos o diagnóstico final atualizado.
-                        3. PROTOCOLO ÁLCOOL: Recomendamos afastamento total de bebidas alcoólicas por 12 MESES.
-                        4. PROTOCOLO CAFÉ: Se o analista detectou café+cigarro, recomende suspender o café por 30 DIAS após a parada.
-                        
-                        FERRAMENTAS PRÁTICAS (Escolha 1 baseada no perfil):
-                        - Se for HÁBITO AUTOMÁTICO (ex: acordar): Use "Elemento Neutro/Confusão" (Ex: Escovar dentes com a outra mão, mudar o trajeto, beber água gelada em goles médios).
-                        - Se for FISSURA/PENSAMENTO (ex: "só um traguinho"): Use "Elemento Punitivo/Desconforto" (Ex: Segurar gelo na mão até doer, arrumar uma gaveta bagunçada, fazer prancha no chão).
-                        - Se for ANSIEDADE/ENERGIA: Use "Dissipação" (Ex: 20 agachamentos, Respiração 4-4-4-4).
-                        
-                        LINGUAGEM:
-                        - Não cite autores (Pavlov, Skinner). Fale a língua do aluno.
-                        - Use "Técnica de Quebra de Padrão" em vez de termos técnicos.
-                        - Seja criativo nas tarefas neutras/punitivas usando os dados da planilha.
-                        """
-                        
-                        resp = model.generate_content(prompt_mentor)
-                        st.session_state.diag_adm = resp.text
-                        st.success("Diagnóstico Estratégico Gerado!")
+                        st.session_state.diag_adm = analise_especialista
+                        st.success("Raio-X Comportamental Gerado com Sucesso!")
                         st.markdown(st.session_state.diag_adm)
                         
                 except Exception as e: st.error(f"Erro: {e}")
@@ -579,6 +604,7 @@ else:
                             hist_raw = gatilhos.iloc[:, col_indices].tail(20).to_dict('records')
                             perfil_raw = perfil.tail(1).to_dict('records') if not perfil.empty else {}
 
+                            # --- AQUI MANTEMOS A LÓGICA DO USUÁRIO, MAS SIMPLIFICAMOS O PROMPT ---
                             with st.spinner("Passo 1/2: Analisando padrões comportamentais..."):
                                 analise_oculta = analisar_intencoes_ocultas(hist_raw, perfil_raw)
 
@@ -596,18 +622,24 @@ else:
                                 TAREFA:
                                 Escreva um diagnóstico prático para o PDF.
                                 
+                                LINGUAGEM E TOM DE VOZ (MUITO IMPORTANTE):
+                                - Use linguagem simples, direta e motivadora.
+                                - 🚫 PROIBIDO usar nomes de cientistas (Pavlov, Skinner, Alexander, etc.).
+                                - 🚫 PROIBIDO usar termos técnicos complexos (Condicionamento Clássico, Meta Padrão).
+                                - Em vez de "Gatilho Pavloviano", diga "Gatilho Automático".
+                                - Em vez de "Rat Park", diga "Ambiente e Emoções".
+                                
                                 REGRAS DO MÉTODO:
                                 1. NÃO MANDAR PARAR HOJE. Hoje é preparação e estratégia.
-                                2. PROTOCOLO OBRIGATÓRIO: Continue registrando TODOS os cigarros no Detector (App) até o último dia. Essa é a única forma de gerar o mapa final. (NÃO sugira cadernos/papel).
-                                3. CAFEÍNA: Se houver associação, recomende suspender café por 30 dias PÓS-PARADA.
-                                4. ÁLCOOL: Recomende suspensão total por 12 meses.
+                                2. PROTOCOLO OBRIGATÓRIO: Continue registrando TODOS os cigarros no Detector (App).
+                                3. CAFEÍNA/ÁLCOOL: Sugira ajustes suaves se necessário.
                                 
                                 FERRAMENTA PRÁTICA (Escolha 1):
-                                - "Elemento Neutro" (Água gelada, Mudar trajeto) para HÁBITOS AUTOMÁTICOS.
-                                - "Elemento Punitivo" (Segurar gelo, Arrumar gaveta) para FISSURA/PENSAMENTO.
-                                - "Dissipação" (Agachamento, Respiração Quadrada) para ANSIEDADE.
+                                - "Elemento Neutro" (Água gelada, Mudar trajeto).
+                                - "Elemento Punitivo" (Segurar gelo).
+                                - "Dissipação" (Respiração).
                                 
-                                Seja criativo e use dados do perfil para personalizar a tarefa.
+                                Seja um amigo treinador, não um acadêmico.
                                 """
                                 
                                 resp = model.generate_content(prompt_final)
