@@ -129,7 +129,7 @@ def gerar_pdf_formatado(dados_perfil, top_gatilhos, texto_diagnostico):
     pdf.cell(0, 10, txt="RESUMO DOS DADOS", ln=True, fill=True)
     pdf.set_font("Arial", "B", 10)
     for i, (g, qtd) in enumerate(top_gatilhos.items()):
-        pdf.cell(0, 7, txt=f"{i+1}o: {g.upper()} ({qtd}x)", ln=True)
+        pdf.cell(0, 7, txt=f"{i+1}o: {str(g).upper()} ({qtd}x)", ln=True)
     pdf.ln(10)
     pdf.set_font("Arial", "B", 14)
     pdf.set_text_color(46, 125, 50)
@@ -152,9 +152,19 @@ def filtrar_aluno(df, email_aluno):
         return df[df[col_email] == email_aluno]
     return pd.DataFrame()
 
+# --- FUNÇÃO DETETIVE DE COLUNAS (Lê por Nome e não por Posição) ---
+def buscar_coluna_por_palavra_chave(df, palavras_chave):
+    """Encontra a coluna cujo nome contém alguma das palavras-chave (suporta forms novos e antigos)"""
+    for col in df.columns:
+        col_upper = str(col).upper()
+        if any(kw.upper() in col_upper for kw in palavras_chave):
+            return col
+    return None
+
 # --- INTELIGÊNCIA DE CATEGORIZAÇÃO (HÍBRIDA) ---
 def categorizar_geral_hibrida(texto):
     t = str(texto).upper().strip()
+    if t == 'NAN' or t == 'NONE' or t == '': return "NÃO INFORMADO"
     if any(k in t for k in ['ACORDEI', 'ACORDANDO', 'LEVANTANDO', 'CAMA', 'JEJUM', 'MANHÃ']): return "PRIMEIRO DO DIA (ACORDAR)"
     if any(k in t for k in ['CAFE', 'CAFÉ', 'CAPUCCINO', 'PADARIA', 'DESJEJUM']): return "GATILHO DO CAFÉ"
     if any(k in t for k in ['ALMOÇO', 'JANTAR', 'COMER', 'FOME', 'REFEIÇÃO', 'LANCHE', 'PIZZA']): return "PÓS-REFEIÇÃO"
@@ -173,53 +183,11 @@ def categorizar_geral_hibrida(texto):
     if len(t) > 1: return t
     return "NÃO INFORMADO"
 
-def categorizar_enfrentamento_hibrida(texto):
-    t = str(texto).upper().strip()
-    if any(k in t for k in ['VONTADE', 'DESEJO', 'FORTE', 'FISSURA', 'QUERIA']): return "VONTADE INCONTROLÁVEL"
-    if any(k in t for k in ['HABITO', 'HÁBITO', 'AUTOMATICO', 'AUTOMÁTICO', 'NEM VI']): return "HÁBITO AUTOMÁTICO"
-    if any(k in t for k in ['ANSIEDADE', 'NERVOSO', 'ESTRESSE', 'TENSO', 'BRIGA']): return "ALÍVIO DE ESTRESSE"
-    if any(k in t for k in ['PRAZER', 'RELAXAR', 'GOSTO', 'BOM', 'PREMIO']): return "BUSCA POR PRAZER"
-    if any(k in t for k in ['SOCIAL', 'AMIGOS', 'ACOMPANHAR', 'TURMA']): return "PRESSÃO SOCIAL"
-    if any(k in t for k in ['TÉDIO', 'TEDIO', 'NADA', 'FAZER']): return "TÉDIO"
-    if len(t) > 1: return t
-    return "NÃO INFORMADO"
-
-def categorizar_motivos_principais_hibrida(texto):
-    t = str(texto).upper().strip()
-    if any(k in t for k in ['VICIO', 'VÍCIO', 'NICOTINA', 'QUIMICO', 'QUÍMICO', 'CORPO']): return "DEPENDÊNCIA QUÍMICA"
-    if any(k in t for k in ['TREMEDEIRA', 'ABSTINENCIA', 'FALTA']): return "SINTOMAS DE ABSTINÊNCIA"
-    if any(k in t for k in ['CALMA', 'PAZ', 'TRANQUILO', 'SOSSEGO', 'RELAX']): return "BUSCA POR PAZ/RELAXAMENTO"
-    if any(k in t for k in ['FUGA', 'ESQUECER', 'SUMIR', 'PROBLEMA']): return "FUGA DA REALIDADE"
-    if any(k in t for k in ['CORAGEM', 'FORÇA', 'ENFRENTAR']): return "BUSCA POR CORAGEM"
-    if any(k in t for k in ['FOCO', 'CONCENTRAR', 'ESTUDAR', 'CRIAR']): return "AUMENTO DE FOCO"
-    if any(k in t for k in ['ACEITACAO', 'GRUPO', 'JEITO', 'BONITO']): return "ACEITAÇÃO SOCIAL"
-    if len(t) > 1: return t
-    return "NÃO INFORMADO"
-
-def categorizar_habitos_raio_x(texto):
-    t = str(texto).upper().strip()
-    if ('CAFE' in t or 'CAFÉ' in t) and ('CIGARRO' in t or 'FUMAR' in t): return "RITUAL CAFÉ + CIGARRO"
-    if ('CERVEJA' in t or 'BEBIDA' in t) and ('AMIGOS' in t or 'CONVERSA' in t): return "CERVEJA E PAPO"
-    if any(k in t for k in ['CAFE', 'CAFÉ', 'CAPUCCINO']): return "ACOMPANHANDO CAFÉ"
-    if any(k in t for k in ['ALCOOL', 'ÁLCOOL', 'CERVEJA', 'BEBIDA', 'DRINK', 'VINHO']): return "BEBIDA ALCOÓLICA"
-    if any(k in t for k in ['CELULAR', 'REDES', 'INSTA', 'TIKTOK', 'ZAP']): return "SCROLLANDO NO CELULAR"
-    if any(k in t for k in ['DIRIGIR', 'CARRO', 'VOLANTE', 'MOTO']): return "DIRIGINDO"
-    if any(k in t for k in ['PAUSA', 'INTERVALO', 'RESPIRO']): return "PAUSA NO TRABALHO"
-    if any(k in t for k in ['TRABALHAR', 'PC', 'NOTEBOOK', 'EMAIL', 'COMPUTADOR']): return "TRABALHANDO (FOCO)"
-    if any(k in t for k in ['COMER', 'DOCE', 'SOBREMESA', 'ALMOÇO', 'JANTAR']): return "APÓS REFEIÇÃO/DOCE"
-    if any(k in t for k in ['CONVERSAR', 'PAPO', 'FALAR']): return "CONVERSA SOCIAL"
-    if len(t) > 2: return t
-    return "NENHUM HÁBITO ESPECÍFICO"
-
-# --- INTELIGÊNCIA ANALÍTICA (O MEGA PROMPT - PAVLOV/ALEXANDER/OVERDURF) ---
+# --- INTELIGÊNCIA ANALÍTICA (O MEGA PROMPT ATUALIZADO) ---
 def gerar_analise_comportamental_avancada(dados_brutos, dados_perfil):
-    """
-    Gera o Raio-X Comportamental usando o Mega Prompt do Especialista.
-    """
     genai.configure(api_key=st.secrets["gemini"]["api_key"])
     model_analista = genai.GenerativeModel('gemini-2.0-flash')
     
-    # Prepara os dados brutos para string
     try:
         dados_str = str(dados_brutos)
     except:
@@ -227,41 +195,33 @@ def gerar_analise_comportamental_avancada(dados_brutos, dados_perfil):
 
     prompt_especialista = f"""
     # ATUE COMO:
-    Você é um Especialista Sênior em Ciências Comportamentais e Cessação de Tabagismo, com foco em Neurociência, Condicionamento Clássico (Pavlov), Psicologia Ambiental (Bruce Alexander/Rat Park) e Padrões de Hipnose Ericksoniana (Meta Padrão).
+    Você é o Especialista/Mentor Sênior do Método "Livre da Vontade". O seu tom é empático, direto, claro e encorajador.
 
     # O CONTEXTO:
     Eu tenho um produto chamado "Detector de Gatilhos". O meu mentorado rastreou cada cigarro fumado.
     PERFIL DO MENTORADO: {dados_perfil}
     
     # A SUA MISSÃO:
-    Analise os dados brutos abaixo e gere um "Raio-X Comportamental" profundo. Não quero obviedades. Quero que encontre os padrões ocultos, as âncoras emocionais e as falhas no ambiente.
+    Analise os dados brutos abaixo e gere um "Raio-X Comportamental e Diagnóstico" prático.
 
-    # ESTRUTURA DA ANÁLISE (Use estas 4 Lentes):
+    # ESTRUTURA DA ANÁLISE:
+    1. O Gatilho de Ambiente (Localização e Companhia - Hábitos geográficos).
+    2. A Rotina Imediata (O que acontece antes/depois, ex: Café).
+    3. A Emoção Oculta (O verdadeiro motivo, intenção de pausa, fuga ou ansiedade).
+    4. Plano de Ação (Sugira 1 ferramenta prática baseada no problema principal).
 
-    1. 🔬 A Lente de Pavlov (Gatilhos Mecânicos):
-       * Identifique os "Gatilhos Geográficos" (Onde ele fuma sempre? O local virou uma âncora?).
-       * Identifique os "Gatilhos de Sequência" (O que acontece *imediatamente* antes? Café? Briga? Tédio?).
-
-    2. 🐀 A Lente de Bruce Alexander (O "Rat Park"/Ambiente):
-       * Analise as Emoções. O cigarro está a substituir que necessidade humana? (Conexão, Alívio de Stress, Fuga de uma "gaiola" emocional?).
-       * Qual é a "Gaiola" atual desse mentorado? (Solidão, Trabalho excessivo, Tédio?).
-
-    3. 🌀 A Lente do Meta Padrão (A Estrutura do Problema):
-       * Qual é a "Intenção Positiva" do cigarro para ele? (Ex: Pausa, Proteção, Recompensa).
-       * Qual é o "Estado Problema" (ex: Ansiedade) e qual o "Estado Desejado" (ex: Paz) que ele busca através do fumo?
-
-    4. 🛠️ PLANO DE AÇÃO TÁTICO (Sugira 3 Micro-Ferramentas):
-       * Sugira 1 ferramenta para quebrar o gatilho geográfico.
-       * Sugira 1 ferramenta de respiração ou fisiológica para o momento da fissura.
-       * Sugira 1 Metáfora Isomorfa (uma história curta ou imagem) que eu possa usar para ressignificar o vício dele.
-
-    # DIRETRIZES DE OURO (O QUE NÃO FAZER):
-    1. 🚫 NÃO chame o vício ou a fissura de "Inimigo", "Monstro" ou algo negativo. Use termos como "Sinal de Alerta", "Pedido de Pausa" ou "Mecanismo de Defesa Antigo". (Princípio da Intenção Positiva).
-    2. 🚫 NÃO sugira cortes radicais de Café ou Álcool (como "pare por 12 meses") a menos que seja estritamente necessário. Sugira "Substituições Inteligentes" ou reduções graduais.
-    3. 🚫 NÃO aponte apenas o gatilho (ex: "O quintal é o gatilho"). Dê uma SOLUÇÃO para o gatilho (ex: "Mude a cadeira de lugar", "Crie uma zona livre no quintal").
-
-    # TOM DE VOZ:
-    Profissional, empático, analítico e motivador. Fale diretamente comigo, o treinador.
+    # DIRETRIZES DE OURO (MUITO IMPORTANTE):
+    1. 🚫 PROIBIDO usar nomes de cientistas, autores ou filósofos (Não cite Pavlov, Alexander, Skinner, Erickson, etc.).
+    2. 🚫 PROIBIDO usar termos técnicos complexos (Não use "Condicionamento Clássico", "Meta Padrão", "Rat Park", "Extinção"). Use "Gatilho Automático", "Ambiente", "Ritual".
+    3. 🚫 NÃO mande parar de fumar hoje. Esta fase é apenas de preparação e estratégia.
+    4. 🚫 NÃO chame o vício de "Inimigo", "Monstro" ou "Maldito". Use "Sinal de Alerta" ou "Mecanismo de Fuga".
+    5. OBRIGATÓRIO: Diga para o aluno continuar preenchendo o Detector (App) todos os dias até parar.
+    6. Se envolver café ou álcool, sugira substituições ou pausas temporárias de forma gentil, sem radicalismos que causem stress extra.
+    
+    # FERRAMENTAS PRÁTICAS SUGERIDAS (Escolha 1):
+    - "Elemento Neutro" (Ex: beber água, mudar trajeto, usar a mão não dominante) para quebrar o piloto automático.
+    - "Elemento de Desconforto/Dissipação" (Ex: segurar um cubo de gelo, fazer respiração forte) para momentos de fissura ou ansiedade aguda.
+    - Metáfora Simples (Conte uma história rápida que ressignifique o cigarro, baseada nos interesses da pessoa).
 
     # DADOS DO MENTORADO PARA ANÁLISE:
     {dados_str}
@@ -273,35 +233,7 @@ def gerar_analise_comportamental_avancada(dados_brutos, dados_perfil):
     except Exception as e:
         return f"Erro na análise profunda: {str(e)}"
 
-# --- INTELIGÊNCIA ANALÍTICA SIMPLIFICADA (PASSO 1 ANTIGO - MANTIDO PARA OUTROS USOS SE NECESSÁRIO) ---
-def analisar_intencoes_ocultas(dados_brutos, dados_perfil):
-    genai.configure(api_key=st.secrets["gemini"]["api_key"])
-    model_analista = genai.GenerativeModel('gemini-2.0-flash')
-    
-    prompt_analista = f"""
-    Atue como um Especialista em Ciência de Dados do Vício.
-    
-    PERFIL DO USUÁRIO: {dados_perfil}
-    DADOS DE CONSUMO RECENTE: {dados_brutos}
-    
-    SUA MISSÃO:
-    Identifique PADRÕES OCULTOS neste comportamento.
-    
-    RESPONDA EM TÓPICOS CURTOS:
-    1. Intenção Oculta (O que ele busca de verdade? Tédio? Fuga? Prazer?).
-    2. Gatilho Mestre (Qual a situação que dispara a maior vontade?).
-    3. Correlação Horário x Emoção.
-    4. Ele consome Café ou Álcool associado ao fumo? (Sim/Não).
-    5. O consumo é mais Automático (Hábito) ou Emocional (Fissura)?
-    """
-    
-    try:
-        response = model_analista.generate_content(prompt_analista)
-        return response.text
-    except Exception as e:
-        return f"Erro na análise profunda: {str(e)}"
-
-# --- DASHBOARD VISUAL ---
+# --- DASHBOARD VISUAL (À PROVA DE BALAS - USA BUSCA POR NOME DA COLUNA) ---
 def exibir_dashboard_visual(df_aluno):
     st.subheader("📊 Painel da Autoconsciência")
     st.markdown("---")
@@ -309,11 +241,13 @@ def exibir_dashboard_visual(df_aluno):
     bar_layout = dict(margin=dict(l=0, r=0, t=50, b=0), yaxis=dict(autorange="reversed"))
     
     try:
+        # 1. Cronologia (Usa a coluna de Data - sempre a primeira)
         if df_aluno.shape[1] > 0:
             st.markdown("##### 1. Cronologia do Vício (Dias da Semana)")
+            col_data = df_aluno.columns[0]
             df_temp = df_aluno.copy()
-            df_temp['Data'] = pd.to_datetime(df_temp.iloc[:, 0], dayfirst=True, errors='coerce')
-            df_temp['Dia_Semana'] = df_temp['Data'].dt.day_name()
+            df_temp['Data_Formatada'] = pd.to_datetime(df_temp[col_data], dayfirst=True, errors='coerce')
+            df_temp['Dia_Semana'] = df_temp['Data_Formatada'].dt.day_name()
             mapa_dias = {'Monday': 'Segunda', 'Tuesday': 'Terça', 'Wednesday': 'Quarta', 'Thursday': 'Quinta', 'Friday': 'Sexta', 'Saturday': 'Sábado', 'Sunday': 'Domingo'}
             df_temp['Dia_PT'] = df_temp['Dia_Semana'].map(mapa_dias)
             contagem_dias = df_temp['Dia_PT'].value_counts().reset_index()
@@ -326,10 +260,12 @@ def exibir_dashboard_visual(df_aluno):
             col_chart.plotly_chart(fig1, use_container_width=True)
             st.markdown("---")
 
-        if df_aluno.shape[1] > 3:
-            st.markdown("##### 2. Principais Gatilhos")
+        # 2. Gatilho Anterior
+        col_antes = buscar_coluna_por_palavra_chave(df_aluno, ["ANTES", "ACONTECEU ANTES"])
+        if col_antes:
+            st.markdown("##### 2. Gatilhos de Ação (O que aconteceu antes)")
             df_temp = df_aluno.copy()
-            df_temp['Cat'] = df_temp.iloc[:, 3].apply(categorizar_geral_hibrida)
+            df_temp['Cat'] = df_temp[col_antes].apply(categorizar_geral_hibrida)
             dados = df_temp['Cat'].value_counts().head(10).reset_index()
             dados.columns = ['Gatilho', 'Qtd']
             fig2 = px.pie(dados, names='Gatilho', values='Qtd', hole=0.5, color_discrete_sequence=px.colors.qualitative.Prism)
@@ -338,10 +274,12 @@ def exibir_dashboard_visual(df_aluno):
             st.plotly_chart(fig2, use_container_width=True)
             st.markdown("---")
 
-        if df_aluno.shape[1] > 7:
+        # 3. Hábitos (Mãos e Mente)
+        col_maos = buscar_coluna_por_palavra_chave(df_aluno, ["MÃOS", "MAIS VOCÊ VAI FAZER", "MENTE"])
+        if col_maos:
             st.markdown("##### 3. Hábitos Associados")
             df_temp = df_aluno.copy()
-            df_temp['Cat'] = df_temp.iloc[:, 7].apply(categorizar_habitos_raio_x)
+            df_temp['Cat'] = df_temp[col_maos].apply(categorizar_geral_hibrida)
             dados = df_temp['Cat'].value_counts().head(10).reset_index()
             dados.columns = ['Hábito', 'Qtd']
             fig3 = px.bar(dados, x='Qtd', y='Hábito', orientation='h', text_auto=True, color_discrete_sequence=['#D2691E'])
@@ -349,10 +287,12 @@ def exibir_dashboard_visual(df_aluno):
             st.plotly_chart(fig3, use_container_width=True)
             st.markdown("---")
 
-        if df_aluno.shape[1] > 4:
-            st.markdown("##### 4. Enfrentamento de Tarefas")
+        # 4. Intenção Positiva / Motivo
+        col_motivo = buscar_coluna_por_palavra_chave(df_aluno, ["RESOLVER", "PROPORCIONAR", "POR QUE EXATAMENTE"])
+        if col_motivo:
+            st.markdown("##### 4. O Verdadeiro Motivo (Intenção)")
             df_temp = df_aluno.copy()
-            df_temp['Cat'] = df_temp.iloc[:, 4].apply(categorizar_enfrentamento_hibrida)
+            df_temp['Cat'] = df_temp[col_motivo].apply(categorizar_geral_hibrida)
             dados = df_temp['Cat'].value_counts().head(10).reset_index()
             dados.columns = ['Motivo', 'Qtd']
             fig4 = px.bar(dados, x='Qtd', y='Motivo', orientation='h', text_auto=True, color='Qtd', color_continuous_scale=['#87CEEB', '#00008B'])
@@ -360,10 +300,12 @@ def exibir_dashboard_visual(df_aluno):
             st.plotly_chart(fig4, use_container_width=True)
             st.markdown("---")
 
-        if df_aluno.shape[1] > 2:
+        # 5. Local
+        col_local = buscar_coluna_por_palavra_chave(df_aluno, ["AONDE EXATAMENTE", "AONDE ESTOU", "ONDE E COM QUEM"])
+        if col_local:
             st.markdown("##### 5. Cantinhos Favoritos")
             df_temp = df_aluno.copy()
-            df_temp['Cat'] = df_temp.iloc[:, 2].apply(categorizar_geral_hibrida)
+            df_temp['Cat'] = df_temp[col_local].apply(categorizar_geral_hibrida)
             dados = df_temp['Cat'].value_counts().head(10).reset_index()
             dados.columns = ['Local', 'Qtd']
             fig5 = px.pie(dados, names='Local', values='Qtd', hole=0.5, color_discrete_sequence=px.colors.qualitative.Bold)
@@ -372,10 +314,12 @@ def exibir_dashboard_visual(df_aluno):
             st.plotly_chart(fig5, use_container_width=True)
             st.markdown("---")
 
-        if df_aluno.shape[1] > 6:
+        # 6. Emoções
+        col_emocao = buscar_coluna_por_palavra_chave(df_aluno, ["EMOÇÃO", "EMOCAO"])
+        if col_emocao:
             st.markdown("##### 6. Emoções Propícias ao Consumo")
             df_temp = df_aluno.copy()
-            df_temp['Cat'] = df_temp.iloc[:, 6].apply(lambda x: str(x).upper().strip())
+            df_temp['Cat'] = df_temp[col_emocao].apply(lambda x: str(x).upper().strip() if pd.notnull(x) else "NÃO INFORMADO")
             dados = df_temp['Cat'].value_counts().head(10).reset_index()
             dados.columns = ['Emoção', 'Qtd']
             fig6 = px.bar(dados, x='Qtd', y='Emoção', orientation='h', text_auto=True, color='Qtd', color_continuous_scale=['#FA8072', '#8B0000'])
@@ -383,15 +327,21 @@ def exibir_dashboard_visual(df_aluno):
             st.plotly_chart(fig6, use_container_width=True)
             st.markdown("---")
 
-        if df_aluno.shape[1] > 5:
-            st.markdown("##### 7. Os Principais Motivos")
+        # 7. Nível de Intensidade (Novo Gráfico Exclusivo)
+        col_intensidade = buscar_coluna_por_palavra_chave(df_aluno, ["URGÊNCIA", "VONTADE", "ESCALA", "1 A 10"])
+        if col_intensidade and not df_aluno[col_intensidade].isnull().all():
+            st.markdown("##### 7. Nível de Urgência (Fissura)")
             df_temp = df_aluno.copy()
-            df_temp['Cat'] = df_temp.iloc[:, 5].apply(categorizar_motivos_principais_hibrida)
-            dados = df_temp['Cat'].value_counts().head(10).reset_index()
-            dados.columns = ['Motivo Principal', 'Qtd']
-            fig7 = px.bar(dados, x='Qtd', y='Motivo Principal', orientation='h', text_auto=True, color='Qtd', color_continuous_scale=['#9370DB', '#4B0082'])
-            fig7.update_layout(**bar_layout)
-            st.plotly_chart(fig7, use_container_width=True)
+            # Converte para numérico limpando textos
+            df_temp['Intensidade'] = pd.to_numeric(df_temp[col_intensidade], errors='coerce').fillna(0)
+            df_temp = df_temp[df_temp['Intensidade'] > 0] # Filtra só quem preencheu
+            if not df_temp.empty:
+                dados = df_temp['Intensidade'].value_counts().reset_index()
+                dados.columns = ['Nível', 'Qtd']
+                fig7 = px.bar(dados, x='Nível', y='Qtd', text_auto=True, color='Nível', color_continuous_scale=['#FFD700', '#FF0000'])
+                fig7.update_xaxes(type='category')
+                fig7.update_layout(margin=dict(l=0, r=0, t=50, b=0))
+                st.plotly_chart(fig7, use_container_width=True)
 
     except Exception as e:
         st.error(f"Erro ao gerar gráficos: {e}")
@@ -429,12 +379,16 @@ if st.session_state.admin_logado:
                 try:
                     genai.configure(api_key=st.secrets["gemini"]["api_key"])
                     model = genai.GenerativeModel('gemini-2.0-flash')
-                    top_g = df_gatilhos_total.iloc[:, 3].apply(categorizar_geral_hibrida).value_counts().head(10).to_dict()
-                    top_e = df_gatilhos_total.iloc[:, 6].apply(lambda x: str(x).upper()).value_counts().head(10).to_dict()
+                    col_antes = buscar_coluna_por_palavra_chave(df_gatilhos_total, ["ANTES"]) or df_gatilhos_total.columns[3]
+                    col_emo = buscar_coluna_por_palavra_chave(df_gatilhos_total, ["EMOÇÃO"]) or df_gatilhos_total.columns[6]
+                    
+                    top_g = df_gatilhos_total[col_antes].apply(categorizar_geral_hibrida).value_counts().head(10).to_dict()
+                    top_e = df_gatilhos_total[col_emo].apply(lambda x: str(x).upper()).value_counts().head(10).to_dict()
+                    
                     prompt_turma = f"""
                     Você é o Estrategista Chefe. Analise:
                     TOP GATILHOS: {top_g} | TOP EMOÇÕES: {top_e}
-                    TAREFA: Dossiê do Avatar Coletivo. Vilão nº 1 e Soluções.
+                    TAREFA: Dossiê do Avatar Coletivo. Vilão nº 1 e Soluções (Sem termos técnicos complexos).
                     """
                     with st.spinner("Gerando..."):
                         resp = model.generate_content(prompt_turma)
@@ -472,15 +426,16 @@ if st.session_state.admin_logado:
                 registrar_uso_diagnostico(st.session_state.email_logado, aluno_selecionado)
                 try:
                     perfil_dict = p_adm.tail(1).to_dict('records')[0] if not p_adm.empty else {}
-                    # Pega os dados brutos para o Mega Prompt
-                    h_adm = g_adm.iloc[:, [0, 2, 3, 6, 7]].tail(20).to_dict('records') 
                     
-                    # --- INTEGRAÇÃO DO MEGA PROMPT (Substituindo o fluxo antigo de 2 passos) ---
-                    with st.spinner("O Especialista está analisando com as lentes de Pavlov, Alexander e Overdurf..."):
+                    # Pegamos as últimas 20 linhas mas ignoramos a coluna do Email para poupar tokens
+                    col_email = buscar_coluna_por_palavra_chave(g_adm, ["EMAIL", "E-MAIL"])
+                    cols_to_keep = [c for c in g_adm.columns if c != col_email]
+                    h_adm = g_adm[cols_to_keep].tail(20).to_dict('records') 
+                    
+                    with st.spinner("O Especialista está analisando os dados..."):
                         analise_especialista = gerar_analise_comportamental_avancada(h_adm, perfil_dict)
-                        
                         st.session_state.diag_adm = analise_especialista
-                        st.success("Raio-X Comportamental Gerado com Sucesso!")
+                        st.success("Diagnóstico Gerado com Sucesso!")
                         st.markdown(st.session_state.diag_adm)
                         
                 except Exception as e: st.error(f"Erro: {e}")
@@ -489,7 +444,14 @@ if st.session_state.admin_logado:
 
         if "diag_adm" in st.session_state:
             d_adm = p_adm.tail(1).to_dict('records')[0] if not p_adm.empty else {}
-            top_g_pdf = g_adm.iloc[:,3].value_counts().head(3) if not g_adm.empty else pd.Series()
+            
+            # Tenta pegar a coluna principal (o Gatilho/Antes) para o Resumo do PDF
+            col_resumo = buscar_coluna_por_palavra_chave(g_adm, ["ANTES"])
+            if col_resumo:
+                top_g_pdf = g_adm[col_resumo].value_counts().head(3)
+            else:
+                top_g_pdf = pd.Series()
+                
             pdf_adm = gerar_pdf_formatado(d_adm, top_g_pdf, st.session_state.diag_adm)
             st.download_button("📥 Baixar PDF", data=pdf_adm, file_name=f"Auditoria_{aluno_selecionado}.pdf")
 
@@ -559,7 +521,8 @@ else:
             diagnosticos_usados = 0
             if not gatilhos.empty:
                 df_datas = gatilhos.copy()
-                df_datas['Data_Limpa'] = pd.to_datetime(df_datas.iloc[:, 0], dayfirst=True, errors='coerce').dt.date
+                col_data_aluno = df_datas.columns[0]
+                df_datas['Data_Limpa'] = pd.to_datetime(df_datas[col_data_aluno], dayfirst=True, errors='coerce').dt.date
                 dias_unicos = df_datas['Data_Limpa'].nunique()
                 if not df_log_total.empty:
                     usos = df_log_total[df_log_total.iloc[:, 1].astype(str).str.strip().str.lower() == email]
@@ -571,9 +534,11 @@ else:
 
             if not gatilhos.empty:
                 exibir_dashboard_visual(gatilhos)
-                if gatilhos.shape[1] > 3:
+                
+                col_resumo_aluno = buscar_coluna_por_palavra_chave(gatilhos, ["ANTES"])
+                if col_resumo_aluno:
                     df_temp = gatilhos.copy()
-                    df_temp['Cat'] = df_temp.iloc[:, 3].apply(categorizar_geral_hibrida)
+                    df_temp['Cat'] = df_temp[col_resumo_aluno].apply(categorizar_geral_hibrida)
                     top_gatilhos_pdf = df_temp['Cat'].value_counts().head(3)
             else: st.info("Comece seu mapeamento para liberar o Painel.")
 
@@ -600,50 +565,14 @@ else:
                 if st.button(msg_botao):
                     if registrar_uso_diagnostico(email, email):
                         try:
-                            col_indices = [0, 2, 3, 6, 7] if gatilhos.shape[1] > 7 else [0, 3]
-                            hist_raw = gatilhos.iloc[:, col_indices].tail(20).to_dict('records')
+                            col_email = buscar_coluna_por_palavra_chave(gatilhos, ["EMAIL", "E-MAIL"])
+                            cols_to_keep = [c for c in gatilhos.columns if c != col_email]
+                            hist_raw = gatilhos[cols_to_keep].tail(20).to_dict('records')
                             perfil_raw = perfil.tail(1).to_dict('records') if not perfil.empty else {}
 
-                            # --- AQUI MANTEMOS A LÓGICA DO USUÁRIO, MAS SIMPLIFICAMOS O PROMPT ---
-                            with st.spinner("Passo 1/2: Analisando padrões comportamentais..."):
-                                analise_oculta = analisar_intencoes_ocultas(hist_raw, perfil_raw)
-
-                            with st.spinner("Passo 2/2: Criando plano de ação personalizado..."):
-                                genai.configure(api_key=st.secrets["gemini"]["api_key"])
-                                model = genai.GenerativeModel('gemini-2.0-flash')
-                                
-                                prompt_final = f"""
-                                Você é o MENTOR IA do Método "Livre da Vontade".
-                                
-                                >>> ANÁLISE DE COMPORTAMENTO DO ALUNO:
-                                {analise_oculta}
-                                <<<
-                                
-                                TAREFA:
-                                Escreva um diagnóstico prático para o PDF.
-                                
-                                LINGUAGEM E TOM DE VOZ (MUITO IMPORTANTE):
-                                - Use linguagem simples, direta e motivadora.
-                                - 🚫 PROIBIDO usar nomes de cientistas (Pavlov, Skinner, Alexander, etc.).
-                                - 🚫 PROIBIDO usar termos técnicos complexos (Condicionamento Clássico, Meta Padrão).
-                                - Em vez de "Gatilho Pavloviano", diga "Gatilho Automático".
-                                - Em vez de "Rat Park", diga "Ambiente e Emoções".
-                                
-                                REGRAS DO MÉTODO:
-                                1. NÃO MANDAR PARAR HOJE. Hoje é preparação e estratégia.
-                                2. PROTOCOLO OBRIGATÓRIO: Continue registrando TODOS os cigarros no Detector (App).
-                                3. CAFEÍNA/ÁLCOOL: Sugira ajustes suaves se necessário.
-                                
-                                FERRAMENTA PRÁTICA (Escolha 1):
-                                - "Elemento Neutro" (Água gelada, Mudar trajeto).
-                                - "Elemento Punitivo" (Segurar gelo).
-                                - "Dissipação" (Respiração).
-                                
-                                Seja um amigo treinador, não um acadêmico.
-                                """
-                                
-                                resp = model.generate_content(prompt_final)
-                                st.session_state.ultimo_diagnostico = resp.text
+                            with st.spinner("Analisando os teus padrões e rotinas..."):
+                                analise_final = gerar_analise_comportamental_avancada(hist_raw, perfil_raw)
+                                st.session_state.ultimo_diagnostico = analise_final
                                 st.rerun()
                         except Exception as e: st.error(f"Erro: {e}")
                     else: st.error("Erro ao registrar uso.")
