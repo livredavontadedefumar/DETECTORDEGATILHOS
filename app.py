@@ -154,7 +154,7 @@ def filtrar_aluno(df, email_aluno):
 
 # --- FUNÇÃO DETETIVE DE COLUNAS (Lê por Nome e não por Posição) ---
 def buscar_coluna_por_palavra_chave(df, palavras_chave):
-    """Encontra a coluna cujo nome contém alguma das palavras-chave (suporta forms novos e antigos)"""
+    """Encontra a coluna cujo nome contém alguma das palavras-chave"""
     for col in df.columns:
         col_upper = str(col).upper()
         if any(kw.upper() in col_upper for kw in palavras_chave):
@@ -183,8 +183,10 @@ def categorizar_geral_hibrida(texto):
     if len(t) > 1: return t
     return "NÃO INFORMADO"
 
-# --- INTELIGÊNCIA ANALÍTICA (O MEGA PROMPT ATUALIZADO) ---
-def gerar_analise_comportamental_avancada(dados_brutos, dados_perfil):
+# --- INTELIGÊNCIA ANALÍTICA EM 2 PASSOS (O MOTOR DE IA) ---
+
+# PASSO 1: O DETETIVE (FRIO E ANALÍTICO - 4 LENTES)
+def analisar_intencoes_ocultas(dados_brutos, dados_perfil):
     genai.configure(api_key=st.secrets["gemini"]["api_key"])
     model_analista = genai.GenerativeModel('gemini-2.0-flash')
     
@@ -193,45 +195,54 @@ def gerar_analise_comportamental_avancada(dados_brutos, dados_perfil):
     except:
         dados_str = "Dados não formatáveis."
 
-    prompt_especialista = f"""
-    # ATUE COMO:
-    Você é o Especialista/Mentor Sênior do Método "Livre da Vontade". O seu tom é empático, direto, claro e encorajador.
-
-    # O CONTEXTO:
-    Eu tenho um produto chamado "Detector de Gatilhos". O meu mentorado rastreou cada cigarro fumado.
-    PERFIL DO MENTORADO: {dados_perfil}
+    prompt_detetive = f"""
+    Atue como um Analista de Dados Comportamentais Sênior (Frio, clínico e direto).
     
-    # A SUA MISSÃO:
-    Analise os dados brutos abaixo e gere um "Raio-X Comportamental e Diagnóstico" prático.
-
-    # ESTRUTURA DA ANÁLISE:
-    1. O Gatilho de Ambiente (Localização e Companhia - Hábitos geográficos).
-    2. A Rotina Imediata (O que acontece antes/depois, ex: Café).
-    3. A Emoção Oculta (O verdadeiro motivo, intenção de pausa, fuga ou ansiedade).
-    4. Plano de Ação (Sugira 1 ferramenta prática baseada no problema principal).
-
-    # DIRETRIZES DE OURO (MUITO IMPORTANTE):
-    1. 🚫 PROIBIDO usar nomes de cientistas, autores ou filósofos (Não cite Pavlov, Alexander, Skinner, Erickson, etc.).
-    2. 🚫 PROIBIDO usar termos técnicos complexos (Não use "Condicionamento Clássico", "Meta Padrão", "Rat Park", "Extinção"). Use "Gatilho Automático", "Ambiente", "Ritual".
-    3. 🚫 NÃO mande parar de fumar hoje. Esta fase é apenas de preparação e estratégia.
-    4. 🚫 NÃO chame o vício de "Inimigo", "Monstro" ou "Maldito". Use "Sinal de Alerta" ou "Mecanismo de Fuga".
-    5. OBRIGATÓRIO: Diga para o aluno continuar preenchendo o Detector (App) todos os dias até parar.
-    6. Se envolver café ou álcool, sugira substituições ou pausas temporárias de forma gentil, sem radicalismos que causem stress extra.
+    PERFIL DO USUÁRIO: {dados_perfil}
+    DADOS DE CONSUMO: {dados_str}
     
-    # FERRAMENTAS PRÁTICAS SUGERIDAS (Escolha 1):
-    - "Elemento Neutro" (Ex: beber água, mudar trajeto, usar a mão não dominante) para quebrar o piloto automático.
-    - "Elemento de Desconforto/Dissipação" (Ex: segurar um cubo de gelo, fazer respiração forte) para momentos de fissura ou ansiedade aguda.
-    - Metáfora Simples (Conte uma história rápida que ressignifique o cigarro, baseada nos interesses da pessoa).
-
-    # DADOS DO MENTORADO PARA ANÁLISE:
-    {dados_str}
+    SUA MISSÃO: Faça um mapeamento técnico usando 4 Lentes da ciência comportamental:
+    1. PAVLOV (Gatilhos): Qual é o principal gatilho geográfico (local) e de sequência (o que acontece antes)? Há padrão de intensidade?
+    2. ALEXANDER (Gaiola): O ambiente dele gera que tipo de necessidade? (Solidão, stress, pausa?)
+    3. OVERDURF (Intenção): Qual é a intenção positiva primária (Estado Desejado) por trás do cigarro? (Ex: fuga, alívio, recompensa).
+    4. ELMAN (Transe): O que as mãos e a mente estão fazendo? (Há algum transe hipnótico associado, como mexer no celular ou olhar pro nada?)
+    
+    Forneça apenas o relatório técnico cru em tópicos curtos, focado na raiz do problema.
     """
-    
     try:
-        response = model_analista.generate_content(prompt_especialista)
+        response = model_analista.generate_content(prompt_detetive)
         return response.text
     except Exception as e:
-        return f"Erro na análise profunda: {str(e)}"
+        return f"Erro na análise do detetive: {str(e)}"
+
+# PASSO 2: A MADRINHA / MENTOR (TRADUTORA E ESTRATEGISTA)
+def gerar_diagnostico_final(analise_detetive):
+    genai.configure(api_key=st.secrets["gemini"]["api_key"])
+    model_mentor = genai.GenerativeModel('gemini-2.0-flash')
+    
+    prompt_mentor = f"""
+    Atue como o MENTOR SÊNIOR do Método "Livre da Vontade". O seu tom é acolhedor, direto, claro e encorajador.
+    
+    >>> RELATÓRIO DO DETETIVE (INPUT TÉCNICO):
+    {analise_detetive}
+    <<<
+    
+    SUA MISSÃO: Escrever o "Raio-X Comportamental e Diagnóstico" final para o aluno ler. Traduza o relatório acima em ações práticas, de forma amigável.
+    
+    REGRAS DE OURO:
+    1. 🚫 PROIBIDO usar nomes de cientistas (Pavlov, Alexander, Skinner, Elman) ou jargões ("Meta Padrão", "Condicionamento", "Extinção"). Fale a língua do aluno. Use "Gatilho Automático", "Ambiente", "Ritual".
+    2. 🚫 NÃO mande parar de fumar hoje. Esta fase é apenas de preparação e estratégia.
+    3. 🚫 NÃO chame o vício de "Inimigo", "Monstro" ou "Maldito". Use "Sinal de Alerta", "Busca por Alívio" ou "Mecanismo de Fuga".
+    4. OBRIGATÓRIO: Diga para ele continuar a preencher o Detector (App) todos os dias até parar definitivamente.
+    5. Se envolver café ou álcool, sugira substituições de forma gentil, sem radicalismos que causem stress extra.
+    6. Crie 1 Ferramenta Prática baseada no problema principal. Exemplo: "Elemento Neutro" (beber água, mudar trajeto) para quebrar o hábito automático, ou "Dissipação/Desconforto" (respiração, segurar gelo) para ansiedade/fissura.
+    """
+    try:
+        response = model_mentor.generate_content(prompt_mentor)
+        return response.text
+    except Exception as e:
+        return f"Erro na geração do diagnóstico: {str(e)}"
+
 
 # --- DASHBOARD VISUAL (À PROVA DE BALAS - USA BUSCA POR NOME DA COLUNA) ---
 def exibir_dashboard_visual(df_aluno):
@@ -275,7 +286,7 @@ def exibir_dashboard_visual(df_aluno):
             st.markdown("---")
 
         # 3. Hábitos (Mãos e Mente)
-        col_maos = buscar_coluna_por_palavra_chave(df_aluno, ["MÃOS", "MAIS VOCÊ VAI FAZER", "MENTE"])
+        col_maos = buscar_coluna_por_palavra_chave(df_aluno, ["MÃOS", "MAIS VOCÊ VAI FAZER", "MENTE", "ENQUANTO FUMO"])
         if col_maos:
             st.markdown("##### 3. Hábitos Associados")
             df_temp = df_aluno.copy()
@@ -327,14 +338,13 @@ def exibir_dashboard_visual(df_aluno):
             st.plotly_chart(fig6, use_container_width=True)
             st.markdown("---")
 
-        # 7. Nível de Intensidade (Novo Gráfico Exclusivo)
+        # 7. Nível de Intensidade (Novo Gráfico)
         col_intensidade = buscar_coluna_por_palavra_chave(df_aluno, ["URGÊNCIA", "VONTADE", "ESCALA", "1 A 10"])
         if col_intensidade and not df_aluno[col_intensidade].isnull().all():
             st.markdown("##### 7. Nível de Urgência (Fissura)")
             df_temp = df_aluno.copy()
-            # Converte para numérico limpando textos
             df_temp['Intensidade'] = pd.to_numeric(df_temp[col_intensidade], errors='coerce').fillna(0)
-            df_temp = df_temp[df_temp['Intensidade'] > 0] # Filtra só quem preencheu
+            df_temp = df_temp[df_temp['Intensidade'] > 0] 
             if not df_temp.empty:
                 dados = df_temp['Intensidade'].value_counts().reset_index()
                 dados.columns = ['Nível', 'Qtd']
@@ -426,15 +436,17 @@ if st.session_state.admin_logado:
                 registrar_uso_diagnostico(st.session_state.email_logado, aluno_selecionado)
                 try:
                     perfil_dict = p_adm.tail(1).to_dict('records')[0] if not p_adm.empty else {}
-                    
-                    # Pegamos as últimas 20 linhas mas ignoramos a coluna do Email para poupar tokens
                     col_email = buscar_coluna_por_palavra_chave(g_adm, ["EMAIL", "E-MAIL"])
                     cols_to_keep = [c for c in g_adm.columns if c != col_email]
                     h_adm = g_adm[cols_to_keep].tail(20).to_dict('records') 
                     
-                    with st.spinner("O Especialista está analisando os dados..."):
-                        analise_especialista = gerar_analise_comportamental_avancada(h_adm, perfil_dict)
-                        st.session_state.diag_adm = analise_especialista
+                    # --- EXECUÇÃO EM 2 PASSOS PARA O ADMIN ---
+                    with st.spinner("Passo 1/2: O Detetive está a mapear os padrões ocultos..."):
+                        analise_oculta = analisar_intencoes_ocultas(h_adm, perfil_dict)
+                        
+                    with st.spinner("Passo 2/2: O Mentor está a traduzir a estratégia para o aluno..."):
+                        analise_final = gerar_diagnostico_final(analise_oculta)
+                        st.session_state.diag_adm = analise_final
                         st.success("Diagnóstico Gerado com Sucesso!")
                         st.markdown(st.session_state.diag_adm)
                         
@@ -444,14 +456,11 @@ if st.session_state.admin_logado:
 
         if "diag_adm" in st.session_state:
             d_adm = p_adm.tail(1).to_dict('records')[0] if not p_adm.empty else {}
-            
-            # Tenta pegar a coluna principal (o Gatilho/Antes) para o Resumo do PDF
             col_resumo = buscar_coluna_por_palavra_chave(g_adm, ["ANTES"])
             if col_resumo:
                 top_g_pdf = g_adm[col_resumo].value_counts().head(3)
             else:
                 top_g_pdf = pd.Series()
-                
             pdf_adm = gerar_pdf_formatado(d_adm, top_g_pdf, st.session_state.diag_adm)
             st.download_button("📥 Baixar PDF", data=pdf_adm, file_name=f"Auditoria_{aluno_selecionado}.pdf")
 
@@ -534,7 +543,6 @@ else:
 
             if not gatilhos.empty:
                 exibir_dashboard_visual(gatilhos)
-                
                 col_resumo_aluno = buscar_coluna_por_palavra_chave(gatilhos, ["ANTES"])
                 if col_resumo_aluno:
                     df_temp = gatilhos.copy()
@@ -570,10 +578,15 @@ else:
                             hist_raw = gatilhos[cols_to_keep].tail(20).to_dict('records')
                             perfil_raw = perfil.tail(1).to_dict('records') if not perfil.empty else {}
 
-                            with st.spinner("Analisando os teus padrões e rotinas..."):
-                                analise_final = gerar_analise_comportamental_avancada(hist_raw, perfil_raw)
+                            # --- EXECUÇÃO EM 2 PASSOS PARA O ALUNO ---
+                            with st.spinner("Passo 1/2: Analisando padrões comportamentais ocultos..."):
+                                analise_oculta = analisar_intencoes_ocultas(hist_raw, perfil_raw)
+
+                            with st.spinner("Passo 2/2: Criando plano de ação personalizado..."):
+                                analise_final = gerar_diagnostico_final(analise_oculta)
                                 st.session_state.ultimo_diagnostico = analise_final
                                 st.rerun()
+                                
                         except Exception as e: st.error(f"Erro: {e}")
                     else: st.error("Erro ao registrar uso.")
 
