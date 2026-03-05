@@ -657,7 +657,7 @@ else:
             st.subheader("🧠 Inteligência Comportamental")
             
             pode_gerar = False
-            msg_botao = "🚀 GERAR MEU DIAGNÓSTICO (COM FERRAMENTAS PRÁTICAS)"
+            msg_botao = "🚀 GERAR MEU DIAGNÓSTICO ESTRATÉGICO"
             
             if dias_unicos < 7:
                 st.warning(f"🔒 Faltam {7 - dias_unicos} dias de registro.")
