@@ -74,7 +74,6 @@ def carregar_todos_os_dados():
             except:
                 df_l = pd.DataFrame(columns=["DATA", "QUEM_SOLICITOU", "ALUNO_ANALISADO"])
             
-            # --- NOVO: LÊ A ABA DO SOS ---
             try:
                 ws_sos = sh.worksheet("LOG_SOS")
                 df_sos = pd.DataFrame(ws_sos.get_all_records())
@@ -115,9 +114,8 @@ def verificar_limite_madrinha(email_madrinha, email_aluno, df_log):
         return False
     return True
 
-# --- FUNÇÕES DO BOTÃO SOS (NOVAS) ---
+# --- FUNÇÕES DO BOTÃO SOS ---
 def verificar_limites_sos(email_aluno, df_sos):
-    """Verifica se o aluno atingiu as travas diárias (3) e mensais (15)."""
     if df_sos.empty:
         return True, "", 0, 0
     
@@ -142,7 +140,6 @@ def verificar_limites_sos(email_aluno, df_sos):
     return True, "", qtd_hoje, qtd_mes
 
 def registrar_uso_sos(email_aluno, mensagem):
-    """Grava o uso do SOS na aba LOG_SOS, se não existir a aba, ele cria na hora."""
     sh = conectar_planilha()
     if sh:
         try:
@@ -231,7 +228,6 @@ def filtrar_aluno(df, email_aluno):
         return df[df[col_email] == email_aluno]
     return pd.DataFrame()
 
-# --- FUNÇÃO DETETIVE DE COLUNAS ---
 def buscar_coluna_por_palavra_chave(df, palavras_chave):
     for col in df.columns:
         col_upper = str(col).upper()
@@ -239,7 +235,6 @@ def buscar_coluna_por_palavra_chave(df, palavras_chave):
             return col
     return None
 
-# --- INTELIGÊNCIA DE CATEGORIZAÇÃO (HÍBRIDA) ---
 def categorizar_geral_hibrida(texto):
     t = str(texto).upper().strip()
     if t == 'NAN' or t == 'NONE' or t == '': return "NÃO INFORMADO"
@@ -261,7 +256,6 @@ def categorizar_geral_hibrida(texto):
     if len(t) > 1: return t
     return "NÃO INFORMADO"
 
-# --- INTELIGÊNCIA ANALÍTICA EM 2 PASSOS (O MOTOR DE IA) ---
 def analisar_intencoes_ocultas(dados_brutos, dados_perfil):
     genai.configure(api_key=st.secrets["gemini"]["api_key"])
     model_analista = genai.GenerativeModel('gemini-2.0-flash')
@@ -318,7 +312,6 @@ def gerar_diagnostico_final(analise_detetive):
     except Exception as e:
         return f"Erro na geração do diagnóstico: {str(e)}"
 
-# --- DASHBOARD VISUAL ---
 def exibir_dashboard_visual(df_aluno):
     st.subheader("📊 Painel da Autoconsciência")
     st.markdown("---")
@@ -577,43 +570,44 @@ else:
                 """)
 
             # =========================================================
-            # NOVO BLOCO: BOTAO SOS DE EMERGENCIA (Logo no topo para acesso rápido)
+            # BLOCO SOS CORRIGIDO (COM FORMULÁRIO PARA EVITAR BUG DE CLIQUE)
             # =========================================================
             st.markdown("---")
-            st.markdown("### 🚨 SOS Madrinha (Ajuda Imediata)")
-            st.markdown("A vontade apertou? A ansiedade bateu forte agora? Escreva abaixo o que está sentindo e eu te ajudo neste exato momento.")
-            
             pode_usar_sos, msg_erro_sos, usos_hoje, usos_mes = verificar_limites_sos(email, df_sos_total)
             
-            mensagem_sos = st.text_area("O que você está sentindo/pensando agora?", placeholder="Ex: Acabei de brigar e deu uma vontade louca de acender um cigarro...")
-            
-            col_sos1, col_sos2 = st.columns([1, 2])
-            with col_sos1:
-                if not pode_usar_sos:
-                    st.button("🆘 Enviar Pedido", disabled=True)
-                    st.error(msg_erro_sos)
-                else:
-                    if st.button("🆘 Enviar Pedido", use_container_width=True):
-                        if not mensagem_sos.strip():
-                            st.warning("Por favor, digite o que está sentindo antes de enviar o SOS.")
-                        else:
-                            with st.spinner("A Madrinha está preparando a sua resposta..."):
-                                if registrar_uso_sos(email, mensagem_sos):
-                                    perfil_resumo = perfil.tail(1).to_dict('records')[0] if not perfil.empty else "Dados do perfil não disponíveis"
-                                    
-                                    col_resumo_aluno_sos = buscar_coluna_por_palavra_chave(gatilhos, ["ANTES"])
-                                    if col_resumo_aluno_sos and not gatilhos.empty:
-                                        gatilhos_resumo = gatilhos[col_resumo_aluno_sos].apply(categorizar_geral_hibrida).value_counts().head(3).to_dict()
-                                    else:
-                                        gatilhos_resumo = "O aluno ainda está começando a mapear os gatilhos..."
-                                        
-                                    resposta_sos = gerar_resposta_sos(mensagem_sos, perfil_resumo, gatilhos_resumo)
-                                    st.session_state[f'sos_resposta_{email}'] = resposta_sos
-                                    st.rerun() # Atualiza a página para descontar do limite do dia visualmente
+            with st.form(key=f"form_sos_emergencia"):
+                st.markdown("### 🚨 SOS Madrinha (Ajuda Imediata)")
+                st.markdown("A vontade apertou? A ansiedade bateu forte agora? Escreva abaixo o que está sentindo e eu te ajudo neste exato momento.")
+                
+                mensagem_sos = st.text_area("O que você está sentindo/pensando agora?", placeholder="Ex: Acabei de brigar e deu uma vontade louca de acender um cigarro...")
+                
+                col_sos1, col_sos2 = st.columns([1, 2])
+                with col_sos1:
+                    submit_sos = st.form_submit_button("🆘 Enviar Pedido", disabled=not pode_usar_sos, use_container_width=True)
+                with col_sos2:
+                    st.caption(f"**Seus Limites do SOS:** Você usou **{usos_hoje}/3** hoje e **{usos_mes}/15** neste mês.")
+
+                if submit_sos:
+                    if not pode_usar_sos:
+                        st.error(msg_erro_sos)
+                    elif not mensagem_sos.strip():
+                        st.warning("Por favor, digite o que está sentindo antes de enviar o SOS.")
+                    else:
+                        with st.spinner("A Madrinha está preparando a sua resposta..."):
+                            if registrar_uso_sos(email, mensagem_sos):
+                                perfil_resumo = perfil.tail(1).to_dict('records')[0] if not perfil.empty else "Dados do perfil não disponíveis"
+                                
+                                col_resumo_aluno_sos = buscar_coluna_por_palavra_chave(gatilhos, ["ANTES"])
+                                if col_resumo_aluno_sos and not gatilhos.empty:
+                                    gatilhos_resumo = gatilhos[col_resumo_aluno_sos].apply(categorizar_geral_hibrida).value_counts().head(3).to_dict()
                                 else:
-                                    st.error("Erro de conexão com o banco de dados do SOS. Tente novamente.")
-            with col_sos2:
-                st.caption(f"**Seus Limites do SOS:** Você usou **{usos_hoje}/3** hoje e **{usos_mes}/15** neste mês.")
+                                    gatilhos_resumo = "O aluno ainda está começando a mapear os gatilhos..."
+                                    
+                                resposta_sos = gerar_resposta_sos(mensagem_sos, perfil_resumo, gatilhos_resumo)
+                                st.session_state[f'sos_resposta_{email}'] = resposta_sos
+                                st.rerun() 
+                            else:
+                                st.error("Erro de conexão com o banco de dados do SOS. Tente novamente.")
 
             if f'sos_resposta_{email}' in st.session_state:
                 st.success(f"💌 **A Madrinha Diz:**\n\n{st.session_state[f'sos_resposta_{email}']}")
