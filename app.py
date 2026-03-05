@@ -67,20 +67,28 @@ def carregar_todos_os_dados():
         try:
             ws_perfil = sh.worksheet("ENTREVISTA INICIAL")
             ws_gatilhos = sh.worksheet("MAPEAMENTO")
+            
             try:
                 ws_log = sh.worksheet("LOG_DIAGNOSTICOS")
                 df_l = pd.DataFrame(ws_log.get_all_records())
             except:
                 df_l = pd.DataFrame(columns=["DATA", "QUEM_SOLICITOU", "ALUNO_ANALISADO"])
             
+            # --- NOVO: LÊ A ABA DO SOS ---
+            try:
+                ws_sos = sh.worksheet("LOG_SOS")
+                df_sos = pd.DataFrame(ws_sos.get_all_records())
+            except:
+                df_sos = pd.DataFrame(columns=["DATA", "EMAIL", "MENSAGEM"])
+            
             df_p = pd.DataFrame(ws_perfil.get_all_records())
             df_g = pd.DataFrame(ws_gatilhos.get_all_records())
-            return df_p, df_g, df_l
+            return df_p, df_g, df_l, df_sos
         except Exception as e:
             st.error(f"Erro ao ler abas: {e}")
-    return pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
+    return pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame(columns=["DATA", "EMAIL", "MENSAGEM"])
 
-df_perfil_total, df_gatilhos_total, df_log_total = carregar_todos_os_dados()
+df_perfil_total, df_gatilhos_total, df_log_total, df_sos_total = carregar_todos_os_dados()
 
 # --- FUNÇÕES ÚTEIS E LOG ---
 def registrar_uso_diagnostico(quem_solicitou, aluno_analisado):
@@ -107,6 +115,77 @@ def verificar_limite_madrinha(email_madrinha, email_aluno, df_log):
         return False
     return True
 
+# --- FUNÇÕES DO BOTÃO SOS (NOVAS) ---
+def verificar_limites_sos(email_aluno, df_sos):
+    """Verifica se o aluno atingiu as travas diárias (3) e mensais (15)."""
+    if df_sos.empty:
+        return True, "", 0, 0
+    
+    usos = df_sos[df_sos['EMAIL'].astype(str).str.strip().str.lower() == email_aluno.strip().lower()].copy()
+    if usos.empty:
+        return True, "", 0, 0
+        
+    usos['Data_Obj'] = pd.to_datetime(usos['DATA'], errors='coerce')
+    agora = datetime.now()
+    
+    usos_hoje = usos[usos['Data_Obj'].dt.date == agora.date()]
+    qtd_hoje = len(usos_hoje)
+    
+    usos_mes = usos[(usos['Data_Obj'].dt.year == agora.year) & (usos['Data_Obj'].dt.month == agora.month)]
+    qtd_mes = len(usos_mes)
+    
+    if qtd_hoje >= 3:
+        return False, "⚠️ Limite diário atingido: Você já usou o SOS 3 vezes hoje. Continue aplicando as rotinas de defesa.", qtd_hoje, qtd_mes
+    if qtd_mes >= 15:
+        return False, "⚠️ Limite mensal atingido: Você já usou o SOS 15 vezes neste mês. O limite renova no dia 1º.", qtd_hoje, qtd_mes
+        
+    return True, "", qtd_hoje, qtd_mes
+
+def registrar_uso_sos(email_aluno, mensagem):
+    """Grava o uso do SOS na aba LOG_SOS, se não existir a aba, ele cria na hora."""
+    sh = conectar_planilha()
+    if sh:
+        try:
+            try:
+                ws_sos = sh.worksheet("LOG_SOS")
+            except:
+                ws_sos = sh.add_worksheet(title="LOG_SOS", rows="1000", cols="3")
+                ws_sos.append_row(["DATA", "EMAIL", "MENSAGEM"])
+            
+            data_hora = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            ws_sos.append_row([data_hora, email_aluno, str(mensagem)])
+            return True
+        except:
+            return False
+    return False
+
+def gerar_resposta_sos(mensagem_usuario, perfil_resumo, gatilhos_resumo):
+    genai.configure(api_key=st.secrets["gemini"]["api_key"])
+    model_sos = genai.GenerativeModel('gemini-2.0-flash')
+    
+    prompt_sos = f"""
+    Atue como a "Madrinha", a mentora IA sábia e acolhedora do método Livre da Vontade.
+    A usuária acabou de acionar o BOTAO DE SOS porque está com uma fissura (vontade forte de fumar) ou ansiedade alta.
+    
+    MENSAGEM DELA AGORA: "{mensagem_usuario}"
+    
+    CONTEXTO DO MAPA COMPORTAMENTAL DA USUÁRIA:
+    Perfil: {perfil_resumo}
+    Gatilhos Comuns: {gatilhos_resumo}
+    
+    SUA MISSÃO IMEDIATA:
+    1. Acolha o sentimento dela imediatamente, demonstrando muita empatia.
+    2. Valide que isso é apenas o reflexo automático da química/ambiente e que essa onda vai passar.
+    3. Entregue UMA ferramenta prática e simples (ex: Respiração 4 tempos, mudar de cômodo, beber um copo d'água gelada) adequada ao momento que ela relatou.
+    4. Seja curta e direta! No máximo 2 parágrafos curtos. Ela está ansiosa, não tem paciência para ler textos longos agora.
+    """
+    try:
+        response = model_sos.generate_content(prompt_sos)
+        return response.text
+    except Exception as e:
+        return f"Erro ao gerar socorro: {str(e)}"
+
+# --- GERAÇÃO DE PDF E FILTROS ---
 def gerar_pdf_formatado(dados_perfil, top_gatilhos, texto_diagnostico):
     pdf = FPDF()
     pdf.add_page()
@@ -152,9 +231,8 @@ def filtrar_aluno(df, email_aluno):
         return df[df[col_email] == email_aluno]
     return pd.DataFrame()
 
-# --- FUNÇÃO DETETIVE DE COLUNAS (Lê por Nome e não por Posição) ---
+# --- FUNÇÃO DETETIVE DE COLUNAS ---
 def buscar_coluna_por_palavra_chave(df, palavras_chave):
-    """Encontra a coluna cujo nome contém alguma das palavras-chave"""
     for col in df.columns:
         col_upper = str(col).upper()
         if any(kw.upper() in col_upper for kw in palavras_chave):
@@ -184,8 +262,6 @@ def categorizar_geral_hibrida(texto):
     return "NÃO INFORMADO"
 
 # --- INTELIGÊNCIA ANALÍTICA EM 2 PASSOS (O MOTOR DE IA) ---
-
-# PASSO 1: O DETETIVE (FRIO E ANALÍTICO - 4 LENTES)
 def analisar_intencoes_ocultas(dados_brutos, dados_perfil):
     genai.configure(api_key=st.secrets["gemini"]["api_key"])
     model_analista = genai.GenerativeModel('gemini-2.0-flash')
@@ -215,7 +291,6 @@ def analisar_intencoes_ocultas(dados_brutos, dados_perfil):
     except Exception as e:
         return f"Erro na análise do detetive: {str(e)}"
 
-# PASSO 2: A MADRINHA / MENTOR (TRADUTORA E ESTRATEGISTA)
 def gerar_diagnostico_final(analise_detetive):
     genai.configure(api_key=st.secrets["gemini"]["api_key"])
     model_mentor = genai.GenerativeModel('gemini-2.0-flash')
@@ -243,8 +318,7 @@ def gerar_diagnostico_final(analise_detetive):
     except Exception as e:
         return f"Erro na geração do diagnóstico: {str(e)}"
 
-
-# --- DASHBOARD VISUAL (À PROVA DE BALAS - USA BUSCA POR NOME DA COLUNA) ---
+# --- DASHBOARD VISUAL ---
 def exibir_dashboard_visual(df_aluno):
     st.subheader("📊 Painel da Autoconsciência")
     st.markdown("---")
@@ -252,7 +326,6 @@ def exibir_dashboard_visual(df_aluno):
     bar_layout = dict(margin=dict(l=0, r=0, t=50, b=0), yaxis=dict(autorange="reversed"))
     
     try:
-        # 1. Cronologia (Usa a coluna de Data - sempre a primeira)
         if df_aluno.shape[1] > 0:
             st.markdown("##### 1. Cronologia do Vício (Dias da Semana)")
             col_data = df_aluno.columns[0]
@@ -271,7 +344,6 @@ def exibir_dashboard_visual(df_aluno):
             col_chart.plotly_chart(fig1, use_container_width=True)
             st.markdown("---")
 
-        # 2. Gatilho Anterior
         col_antes = buscar_coluna_por_palavra_chave(df_aluno, ["ANTES", "ACONTECEU ANTES"])
         if col_antes:
             st.markdown("##### 2. Gatilhos de Ação (O que aconteceu antes)")
@@ -285,7 +357,6 @@ def exibir_dashboard_visual(df_aluno):
             st.plotly_chart(fig2, use_container_width=True)
             st.markdown("---")
 
-        # 3. Hábitos (Mãos e Mente)
         col_maos = buscar_coluna_por_palavra_chave(df_aluno, ["MÃOS", "MAIS VOCÊ VAI FAZER", "MENTE", "ENQUANTO FUMO"])
         if col_maos:
             st.markdown("##### 3. Hábitos Associados")
@@ -298,7 +369,6 @@ def exibir_dashboard_visual(df_aluno):
             st.plotly_chart(fig3, use_container_width=True)
             st.markdown("---")
 
-        # 4. Intenção Positiva / Motivo
         col_motivo = buscar_coluna_por_palavra_chave(df_aluno, ["RESOLVER", "PROPORCIONAR", "POR QUE EXATAMENTE"])
         if col_motivo:
             st.markdown("##### 4. O Verdadeiro Motivo (Intenção)")
@@ -311,7 +381,6 @@ def exibir_dashboard_visual(df_aluno):
             st.plotly_chart(fig4, use_container_width=True)
             st.markdown("---")
 
-        # 5. Local
         col_local = buscar_coluna_por_palavra_chave(df_aluno, ["AONDE EXATAMENTE", "AONDE ESTOU", "ONDE E COM QUEM"])
         if col_local:
             st.markdown("##### 5. Cantinhos Favoritos")
@@ -325,7 +394,6 @@ def exibir_dashboard_visual(df_aluno):
             st.plotly_chart(fig5, use_container_width=True)
             st.markdown("---")
 
-        # 6. Emoções
         col_emocao = buscar_coluna_por_palavra_chave(df_aluno, ["EMOÇÃO", "EMOCAO"])
         if col_emocao:
             st.markdown("##### 6. Emoções Propícias ao Consumo")
@@ -338,7 +406,6 @@ def exibir_dashboard_visual(df_aluno):
             st.plotly_chart(fig6, use_container_width=True)
             st.markdown("---")
 
-        # 7. Nível de Intensidade (Novo Gráfico)
         col_intensidade = buscar_coluna_por_palavra_chave(df_aluno, ["URGÊNCIA", "VONTADE", "ESCALA", "1 A 10"])
         if col_intensidade and not df_aluno[col_intensidade].isnull().all():
             st.markdown("##### 7. Nível de Urgência (Fissura)")
@@ -440,7 +507,6 @@ if st.session_state.admin_logado:
                     cols_to_keep = [c for c in g_adm.columns if c != col_email]
                     h_adm = g_adm[cols_to_keep].tail(20).to_dict('records') 
                     
-                    # --- EXECUÇÃO EM 2 PASSOS PARA O ADMIN ---
                     with st.spinner("Passo 1/2: O Detetive está a mapear os padrões ocultos..."):
                         analise_oculta = analisar_intencoes_ocultas(h_adm, perfil_dict)
                         
@@ -510,6 +576,49 @@ else:
                 2. Toque em **"Instalar Aplicativo"**.
                 """)
 
+            # =========================================================
+            # NOVO BLOCO: BOTAO SOS DE EMERGENCIA (Logo no topo para acesso rápido)
+            # =========================================================
+            st.markdown("---")
+            st.markdown("### 🚨 SOS Madrinha (Ajuda Imediata)")
+            st.markdown("A vontade apertou? A ansiedade bateu forte agora? Escreva abaixo o que está sentindo e eu te ajudo neste exato momento.")
+            
+            pode_usar_sos, msg_erro_sos, usos_hoje, usos_mes = verificar_limites_sos(email, df_sos_total)
+            
+            mensagem_sos = st.text_area("O que você está sentindo/pensando agora?", placeholder="Ex: Acabei de brigar e deu uma vontade louca de acender um cigarro...")
+            
+            col_sos1, col_sos2 = st.columns([1, 2])
+            with col_sos1:
+                if not pode_usar_sos:
+                    st.button("🆘 Enviar Pedido", disabled=True)
+                    st.error(msg_erro_sos)
+                else:
+                    if st.button("🆘 Enviar Pedido", use_container_width=True):
+                        if not mensagem_sos.strip():
+                            st.warning("Por favor, digite o que está sentindo antes de enviar o SOS.")
+                        else:
+                            with st.spinner("A Madrinha está preparando a sua resposta..."):
+                                if registrar_uso_sos(email, mensagem_sos):
+                                    perfil_resumo = perfil.tail(1).to_dict('records')[0] if not perfil.empty else "Dados do perfil não disponíveis"
+                                    
+                                    col_resumo_aluno_sos = buscar_coluna_por_palavra_chave(gatilhos, ["ANTES"])
+                                    if col_resumo_aluno_sos and not gatilhos.empty:
+                                        gatilhos_resumo = gatilhos[col_resumo_aluno_sos].apply(categorizar_geral_hibrida).value_counts().head(3).to_dict()
+                                    else:
+                                        gatilhos_resumo = "O aluno ainda está começando a mapear os gatilhos..."
+                                        
+                                    resposta_sos = gerar_resposta_sos(mensagem_sos, perfil_resumo, gatilhos_resumo)
+                                    st.session_state[f'sos_resposta_{email}'] = resposta_sos
+                                    st.rerun() # Atualiza a página para descontar do limite do dia visualmente
+                                else:
+                                    st.error("Erro de conexão com o banco de dados do SOS. Tente novamente.")
+            with col_sos2:
+                st.caption(f"**Seus Limites do SOS:** Você usou **{usos_hoje}/3** hoje e **{usos_mes}/15** neste mês.")
+
+            if f'sos_resposta_{email}' in st.session_state:
+                st.success(f"💌 **A Madrinha Diz:**\n\n{st.session_state[f'sos_resposta_{email}']}")
+            # =========================================================
+
             dados_aluno_pdf = {}
             top_gatilhos_pdf = pd.Series(dtype=int)
             if not perfil.empty:
@@ -578,7 +687,6 @@ else:
                             hist_raw = gatilhos[cols_to_keep].tail(20).to_dict('records')
                             perfil_raw = perfil.tail(1).to_dict('records') if not perfil.empty else {}
 
-                            # --- EXECUÇÃO EM 2 PASSOS PARA O ALUNO ---
                             with st.spinner("Passo 1/2: Analisando padrões comportamentais ocultos..."):
                                 analise_oculta = analisar_intencoes_ocultas(hist_raw, perfil_raw)
 
