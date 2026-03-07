@@ -434,94 +434,95 @@ if st.session_state.admin_logado:
         st.rerun()
     
     st.markdown("---")
-    st.subheader("📊 Visão Geral da Turma")
     
-    if not df_gatilhos_total.empty:
-        c1, c2 = st.columns(2)
-        c1.metric("Total de Alunos", df_perfil_total.iloc[:,1].nunique() if not df_perfil_total.empty else 0)
-        c2.metric("Mapeamentos", len(df_gatilhos_total))
-        exibir_dashboard_visual(df_gatilhos_total)
-        
-        if st.session_state.tipo_usuario == 'adm':
-            st.markdown("---")
-            st.subheader("🧠 Inteligência de Avatar (Diagnóstico de Turma)")
-            if st.button("🌍 GERAR DOSSIÊ ESTRATÉGICO"):
-                try:
-                    genai.configure(api_key=st.secrets["gemini"]["api_key"])
-                    model = genai.GenerativeModel('gemini-2.0-flash')
-                    col_antes = buscar_coluna_por_palavra_chave(df_gatilhos_total, ["ANTES"]) or df_gatilhos_total.columns[3]
-                    col_emo = buscar_coluna_por_palavra_chave(df_gatilhos_total, ["EMOÇÃO"]) or df_gatilhos_total.columns[6]
-                    
-                    top_g = df_gatilhos_total[col_antes].apply(categorizar_geral_hibrida).value_counts().head(10).to_dict()
-                    top_e = df_gatilhos_total[col_emo].apply(lambda x: str(x).upper()).value_counts().head(10).to_dict()
-                    
-                    prompt_turma = f"""
-                    Você é o Estrategista Chefe. Analise:
-                    TOP GATILHOS: {top_g} | TOP EMOÇÕES: {top_e}
-                    TAREFA: Dossiê do Avatar Coletivo. Vilão nº 1 e Soluções (Sem termos técnicos complexos).
-                    """
-                    with st.spinner("Gerando..."):
-                        resp = model.generate_content(prompt_turma)
-                        st.session_state.diag_turma = resp.text
-                        st.success("Sucesso!")
-                        st.markdown(st.session_state.diag_turma)
-                except Exception as e: st.error(f"Erro: {e}")
+    # --- ABA 1: VISÃO GERAL DA TURMA (ADMIN E MADRINHAS) ---
+    with st.expander("📊 Visão Geral da Turma"):
+        if not df_gatilhos_total.empty:
+            c1, c2 = st.columns(2)
+            c1.metric("Total de Alunos", df_perfil_total.iloc[:,1].nunique() if not df_perfil_total.empty else 0)
+            c2.metric("Mapeamentos", len(df_gatilhos_total))
+            exibir_dashboard_visual(df_gatilhos_total)
             
-            if "diag_turma" in st.session_state:
-                pdf_turma = gerar_pdf_formatado({'nome': 'DOSSIÊ TURMA'}, pd.Series(), st.session_state.diag_turma)
-                st.download_button("📥 Baixar Dossiê (PDF)", data=pdf_turma, file_name="Dossie_Turma.pdf")
-
-    st.markdown("---")
-    st.subheader("🔍 Auditoria Individual")
-    emails_lista = df_perfil_total.iloc[:, 1].unique().tolist() if not df_perfil_total.empty else []
-    aluno_selecionado = st.selectbox("Selecione o aluno:", [""] + emails_lista)
-    
-    if aluno_selecionado:
-        p_adm = filtrar_aluno(df_perfil_total, aluno_selecionado)
-        g_adm = filtrar_aluno(df_gatilhos_total, aluno_selecionado)
-        
-        if not g_adm.empty:
-            exibir_dashboard_visual(g_adm)
-        
-        pode_gerar_diag = True
-        msg_bloqueio = ""
-        
-        if st.session_state.tipo_usuario == 'madrinha':
-            if not verificar_limite_madrinha(st.session_state.email_logado, aluno_selecionado, df_log_total):
-                pode_gerar_diag = False
-                msg_bloqueio = "⚠️ Limite atingido: Você já gerou 2 diagnósticos para este aluno nos últimos 7 dias. Baixe o PDF anterior."
-
-        if pode_gerar_diag:
-            if st.button("🚀 GERAR DIAGNÓSTICO ESTRATÉGICO"):
-                registrar_uso_diagnostico(st.session_state.email_logado, aluno_selecionado)
-                try:
-                    perfil_dict = p_adm.tail(1).to_dict('records')[0] if not p_adm.empty else {}
-                    col_email = buscar_coluna_por_palavra_chave(g_adm, ["EMAIL", "E-MAIL"])
-                    cols_to_keep = [c for c in g_adm.columns if c != col_email]
-                    h_adm = g_adm[cols_to_keep].tail(20).to_dict('records') 
-                    
-                    with st.spinner("Passo 1/2: O Detetive está a mapear os padrões ocultos..."):
-                        analise_oculta = analisar_intencoes_ocultas(h_adm, perfil_dict)
+            if st.session_state.tipo_usuario == 'adm':
+                st.markdown("---")
+                st.markdown("#### 🧠 Inteligência de Avatar (Diagnóstico de Turma)")
+                if st.button("🌍 GERAR DOSSIÊ ESTRATÉGICO"):
+                    try:
+                        genai.configure(api_key=st.secrets["gemini"]["api_key"])
+                        model = genai.GenerativeModel('gemini-2.0-flash')
+                        col_antes = buscar_coluna_por_palavra_chave(df_gatilhos_total, ["ANTES"]) or df_gatilhos_total.columns[3]
+                        col_emo = buscar_coluna_por_palavra_chave(df_gatilhos_total, ["EMOÇÃO"]) or df_gatilhos_total.columns[6]
                         
-                    with st.spinner("Passo 2/2: O Mentor está a traduzir a estratégia para o aluno..."):
-                        analise_final = gerar_diagnostico_final(analise_oculta)
-                        st.session_state.diag_adm = analise_final
-                        st.success("Diagnóstico Gerado com Sucesso!")
-                        st.markdown(st.session_state.diag_adm)
+                        top_g = df_gatilhos_total[col_antes].apply(categorizar_geral_hibrida).value_counts().head(10).to_dict()
+                        top_e = df_gatilhos_total[col_emo].apply(lambda x: str(x).upper()).value_counts().head(10).to_dict()
                         
-                except Exception as e: st.error(f"Erro: {e}")
-        else:
-            st.error(msg_bloqueio)
+                        prompt_turma = f"""
+                        Você é o Estrategista Chefe. Analise:
+                        TOP GATILHOS: {top_g} | TOP EMOÇÕES: {top_e}
+                        TAREFA: Dossiê do Avatar Coletivo. Vilão nº 1 e Soluções (Sem termos técnicos complexos).
+                        """
+                        with st.spinner("Gerando..."):
+                            resp = model.generate_content(prompt_turma)
+                            st.session_state.diag_turma = resp.text
+                            st.success("Sucesso!")
+                            st.markdown(st.session_state.diag_turma)
+                    except Exception as e: st.error(f"Erro: {e}")
+                
+                if "diag_turma" in st.session_state:
+                    pdf_turma = gerar_pdf_formatado({'nome': 'DOSSIÊ TURMA'}, pd.Series(), st.session_state.diag_turma)
+                    st.download_button("📥 Baixar Dossiê (PDF)", data=pdf_turma, file_name="Dossie_Turma.pdf")
 
-        if "diag_adm" in st.session_state:
-            d_adm = p_adm.tail(1).to_dict('records')[0] if not p_adm.empty else {}
-            col_resumo = buscar_coluna_por_palavra_chave(g_adm, ["ANTES"])
-            if col_resumo:
-                top_g_pdf = g_adm[col_resumo].value_counts().head(3)
+    # --- ABA 2: AUDITORIA INDIVIDUAL (ADMIN E MADRINHAS) ---
+    with st.expander("🔍 Auditoria Individual"):
+        emails_lista = df_perfil_total.iloc[:, 1].unique().tolist() if not df_perfil_total.empty else []
+        aluno_selecionado = st.selectbox("Selecione o aluno:", [""] + emails_lista)
+        
+        if aluno_selecionado:
+            p_adm = filtrar_aluno(df_perfil_total, aluno_selecionado)
+            g_adm = filtrar_aluno(df_gatilhos_total, aluno_selecionado)
+            
+            if not g_adm.empty:
+                exibir_dashboard_visual(g_adm)
+            
+            pode_gerar_diag = True
+            msg_bloqueio = ""
+            
+            if st.session_state.tipo_usuario == 'madrinha':
+                if not verificar_limite_madrinha(st.session_state.email_logado, aluno_selecionado, df_log_total):
+                    pode_gerar_diag = False
+                    msg_bloqueio = "⚠️ Limite atingido: Você já gerou 2 diagnósticos para este aluno nos últimos 7 dias. Baixe o PDF anterior."
+
+            if pode_gerar_diag:
+                if st.button("🚀 GERAR DIAGNÓSTICO ESTRATÉGICO"):
+                    registrar_uso_diagnostico(st.session_state.email_logado, aluno_selecionado)
+                    try:
+                        perfil_dict = p_adm.tail(1).to_dict('records')[0] if not p_adm.empty else {}
+                        col_email = buscar_coluna_por_palavra_chave(g_adm, ["EMAIL", "E-MAIL"])
+                        cols_to_keep = [c for c in g_adm.columns if c != col_email]
+                        h_adm = g_adm[cols_to_keep].tail(20).to_dict('records') 
+                        
+                        with st.spinner("Passo 1/2: O Detetive está a mapear os padrões ocultos..."):
+                            analise_oculta = analisar_intencoes_ocultas(h_adm, perfil_dict)
+                            
+                        with st.spinner("Passo 2/2: O Mentor está a traduzir a estratégia para o aluno..."):
+                            analise_final = gerar_diagnostico_final(analise_oculta)
+                            st.session_state.diag_adm = analise_final
+                            st.success("Diagnóstico Gerado com Sucesso!")
+                            st.markdown(st.session_state.diag_adm)
+                            
+                    except Exception as e: st.error(f"Erro: {e}")
             else:
-                top_g_pdf = pd.Series()
-            pdf_adm = gerar_pdf_formatado(d_adm, top_g_pdf, st.session_state.diag_adm)
-            st.download_button("📥 Baixar PDF", data=pdf_adm, file_name=f"Auditoria_{aluno_selecionado}.pdf")
+                st.error(msg_bloqueio)
+
+            if "diag_adm" in st.session_state:
+                d_adm = p_adm.tail(1).to_dict('records')[0] if not p_adm.empty else {}
+                col_resumo = buscar_coluna_por_palavra_chave(g_adm, ["ANTES"])
+                if col_resumo:
+                    top_g_pdf = g_adm[col_resumo].value_counts().head(3)
+                else:
+                    top_g_pdf = pd.Series()
+                pdf_adm = gerar_pdf_formatado(d_adm, top_g_pdf, st.session_state.diag_adm)
+                st.download_button("📥 Baixar PDF", data=pdf_adm, file_name=f"Auditoria_{aluno_selecionado}.pdf")
 
 else:
     logo_b64 = get_image_base64("logo.png")
