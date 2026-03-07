@@ -558,61 +558,7 @@ else:
         else:
             st.success(f"Logado: {email}")
             
-            with st.expander("📲 Como instalar o App no celular"):
-                st.markdown("""
-                **Para iPhone (iOS):**
-                1. No Safari, clique no botão de **Compartilhar**.
-                2. Role para baixo e toque em **"Adicionar à Tela de Início"**.
-                
-                **Para Android:**
-                1. No Chrome, clique nos **3 pontinhos**.
-                2. Toque em **"Instalar Aplicativo"**.
-                """)
-
-            # =========================================================
-            # BLOCO SOS CORRIGIDO (COM FORMULÁRIO PARA EVITAR BUG DE CLIQUE)
-            # =========================================================
-            st.markdown("---")
-            pode_usar_sos, msg_erro_sos, usos_hoje, usos_mes = verificar_limites_sos(email, df_sos_total)
-            
-            with st.form(key=f"form_sos_emergencia"):
-                st.markdown("### 🚨 SOS Madrinha (Ajuda Imediata)")
-                st.markdown("A vontade apertou? A ansiedade bateu forte agora? Escreva abaixo o que está sentindo e eu te ajudo neste exato momento.")
-                
-                mensagem_sos = st.text_area("O que você está sentindo/pensando agora?", placeholder="Ex: Acabei de brigar e deu uma vontade louca de acender um cigarro...")
-                
-                col_sos1, col_sos2 = st.columns([1, 2])
-                with col_sos1:
-                    submit_sos = st.form_submit_button("🆘 Enviar Pedido", disabled=not pode_usar_sos, use_container_width=True)
-                with col_sos2:
-                    st.caption(f"**Seus Limites do SOS:** Você usou **{usos_hoje}/3** hoje e **{usos_mes}/15** neste mês.")
-
-                if submit_sos:
-                    if not pode_usar_sos:
-                        st.error(msg_erro_sos)
-                    elif not mensagem_sos.strip():
-                        st.warning("Por favor, digite o que está sentindo antes de enviar o SOS.")
-                    else:
-                        with st.spinner("A Madrinha está preparando a sua resposta..."):
-                            if registrar_uso_sos(email, mensagem_sos):
-                                perfil_resumo = perfil.tail(1).to_dict('records')[0] if not perfil.empty else "Dados do perfil não disponíveis"
-                                
-                                col_resumo_aluno_sos = buscar_coluna_por_palavra_chave(gatilhos, ["ANTES"])
-                                if col_resumo_aluno_sos and not gatilhos.empty:
-                                    gatilhos_resumo = gatilhos[col_resumo_aluno_sos].apply(categorizar_geral_hibrida).value_counts().head(3).to_dict()
-                                else:
-                                    gatilhos_resumo = "O aluno ainda está começando a mapear os gatilhos..."
-                                    
-                                resposta_sos = gerar_resposta_sos(mensagem_sos, perfil_resumo, gatilhos_resumo)
-                                st.session_state[f'sos_resposta_{email}'] = resposta_sos
-                                st.rerun() 
-                            else:
-                                st.error("Erro de conexão com o banco de dados do SOS. Tente novamente.")
-
-            if f'sos_resposta_{email}' in st.session_state:
-                st.success(f"💌 **A Madrinha Diz:**\n\n{st.session_state[f'sos_resposta_{email}']}")
-            # =========================================================
-
+            # --- CAIXA DE DADOS DO ALUNO NO TOPO PARA FICAR VISÍVEL ---
             dados_aluno_pdf = {}
             top_gatilhos_pdf = pd.Series(dtype=int)
             if not perfil.empty:
@@ -628,7 +574,62 @@ else:
                         <span style="color: #166534; font-weight: bold;">📍 LOCAL:</span> {dados_aluno_pdf['local']}
                     </div>
                     """, unsafe_allow_html=True)
+            
+            # --- ABA 1: COMO INSTALAR ---
+            with st.expander("📲 Como instalar o App no celular"):
+                st.markdown("""
+                **Para iPhone (iOS):**
+                1. No Safari, clique no botão de **Compartilhar**.
+                2. Role para baixo e toque em **"Adicionar à Tela de Início"**.
+                
+                **Para Android:**
+                1. No Chrome, clique nos **3 pontinhos**.
+                2. Toque em **"Instalar Aplicativo"**.
+                """)
 
+            # --- ABA 2: SOS MADRINHA-IA ---
+            pode_usar_sos, msg_erro_sos, usos_hoje, usos_mes = verificar_limites_sos(email, df_sos_total)
+            
+            with st.expander("🚨 SOS Madrinha-IA"):
+                with st.form(key=f"form_sos_emergencia"):
+                    st.markdown("### SOS Madrinha-IA")
+                    st.markdown("#### (Ajuda Imediata)")
+                    st.markdown("A vontade apertou? A ansiedade bateu forte agora? Escreva abaixo o que está sentindo e eu te ajudo neste exato momento.")
+                    
+                    mensagem_sos = st.text_area("O que você está sentindo/pensando agora?", placeholder="Ex: Acabei de brigar e deu uma vontade louca de acender um cigarro...")
+                    
+                    col_sos1, col_sos2 = st.columns([1, 2])
+                    with col_sos1:
+                        submit_sos = st.form_submit_button("🆘 Enviar Pedido", disabled=not pode_usar_sos, use_container_width=True)
+                    with col_sos2:
+                        st.caption(f"**Seus Limites do SOS:** Você usou **{usos_hoje}/3** hoje e **{usos_mes}/15** neste mês.")
+
+                    if submit_sos:
+                        if not pode_usar_sos:
+                            st.error(msg_erro_sos)
+                        elif not mensagem_sos.strip():
+                            st.warning("Por favor, digite o que está sentindo antes de enviar o SOS.")
+                        else:
+                            with st.spinner("A Madrinha está preparando a sua resposta..."):
+                                if registrar_uso_sos(email, mensagem_sos):
+                                    perfil_resumo = perfil.tail(1).to_dict('records')[0] if not perfil.empty else "Dados do perfil não disponíveis"
+                                    
+                                    col_resumo_aluno_sos = buscar_coluna_por_palavra_chave(gatilhos, ["ANTES"])
+                                    if col_resumo_aluno_sos and not gatilhos.empty:
+                                        gatilhos_resumo = gatilhos[col_resumo_aluno_sos].apply(categorizar_geral_hibrida).value_counts().head(3).to_dict()
+                                    else:
+                                        gatilhos_resumo = "O aluno ainda está começando a mapear os gatilhos..."
+                                        
+                                    resposta_sos = gerar_resposta_sos(mensagem_sos, perfil_resumo, gatilhos_resumo)
+                                    st.session_state[f'sos_resposta_{email}'] = resposta_sos
+                                    st.rerun() 
+                                else:
+                                    st.error("Erro de conexão com o banco de dados do SOS. Tente novamente.")
+
+                if f'sos_resposta_{email}' in st.session_state:
+                    st.success(f"💌 **A Madrinha Diz:**\n\n{st.session_state[f'sos_resposta_{email}']}")
+
+            # Lógica de contagem de dias (necessária para Painel e Inteligência)
             dias_unicos = 0
             diagnosticos_usados = 0
             if not gatilhos.empty:
@@ -644,58 +645,60 @@ else:
             total_diagnosticos_permitidos = ciclos_completos * 2
             saldo_diagnosticos = total_diagnosticos_permitidos - diagnosticos_usados
 
-            if not gatilhos.empty:
-                exibir_dashboard_visual(gatilhos)
-                col_resumo_aluno = buscar_coluna_por_palavra_chave(gatilhos, ["ANTES"])
-                if col_resumo_aluno:
-                    df_temp = gatilhos.copy()
-                    df_temp['Cat'] = df_temp[col_resumo_aluno].apply(categorizar_geral_hibrida)
-                    top_gatilhos_pdf = df_temp['Cat'].value_counts().head(3)
-            else: st.info("Comece seu mapeamento para liberar o Painel.")
+            # --- ABA 3: PAINEL DE CONSCIÊNCIA ---
+            with st.expander("📊 Painel de Consciência"):
+                if not gatilhos.empty:
+                    exibir_dashboard_visual(gatilhos)
+                    col_resumo_aluno = buscar_coluna_por_palavra_chave(gatilhos, ["ANTES"])
+                    if col_resumo_aluno:
+                        df_temp = gatilhos.copy()
+                        df_temp['Cat'] = df_temp[col_resumo_aluno].apply(categorizar_geral_hibrida)
+                        top_gatilhos_pdf = df_temp['Cat'].value_counts().head(3)
+                else: 
+                    st.info("Comece seu mapeamento para liberar o Painel.")
 
-            st.markdown("---")
-            st.subheader("🧠 Inteligência Comportamental")
-            
-            pode_gerar = False
-            msg_botao = "🚀 GERAR MEU DIAGNÓSTICO ESTRATÉGICO"
-            
-            if dias_unicos < 7:
-                st.warning(f"🔒 Faltam {7 - dias_unicos} dias de registro.")
-                st.progress(dias_unicos / 7)
-            elif saldo_diagnosticos <= 0:
-                dias_prox = 7 - (dias_unicos % 7)
-                if dias_prox == 0: dias_prox = 7
-                st.warning(f"🔒 Ciclo encerrado. Registre mais {dias_prox} dias.")
-                st.progress((dias_unicos % 7) / 7)
-            else:
-                pode_gerar = True
-                if saldo_diagnosticos == 1: st.warning("⚠️ Atenção: Último diagnóstico do ciclo!")
-                else: st.success(f"✅ {saldo_diagnosticos} diagnósticos disponíveis.")
+            # --- ABA 4: INTELIGÊNCIA COMPORTAMENTAL ---
+            with st.expander("🧠 Inteligência Comportamental"):
+                pode_gerar = False
+                msg_botao = "🚀 GERAR MEU DIAGNÓSTICO (COM FERRAMENTAS PRÁTICAS)"
+                
+                if dias_unicos < 7:
+                    st.warning(f"🔒 Faltam {7 - dias_unicos} dias de registro.")
+                    st.progress(dias_unicos / 7)
+                elif saldo_diagnosticos <= 0:
+                    dias_prox = 7 - (dias_unicos % 7)
+                    if dias_prox == 0: dias_prox = 7
+                    st.warning(f"🔒 Ciclo encerrado. Registre mais {dias_prox} dias.")
+                    st.progress((dias_unicos % 7) / 7)
+                else:
+                    pode_gerar = True
+                    if saldo_diagnosticos == 1: st.warning("⚠️ Atenção: Último diagnóstico do ciclo!")
+                    else: st.success(f"✅ {saldo_diagnosticos} diagnósticos disponíveis.")
 
-            if pode_gerar:
-                if st.button(msg_botao):
-                    if registrar_uso_diagnostico(email, email):
-                        try:
-                            col_email = buscar_coluna_por_palavra_chave(gatilhos, ["EMAIL", "E-MAIL"])
-                            cols_to_keep = [c for c in gatilhos.columns if c != col_email]
-                            hist_raw = gatilhos[cols_to_keep].tail(20).to_dict('records')
-                            perfil_raw = perfil.tail(1).to_dict('records') if not perfil.empty else {}
+                if pode_gerar:
+                    if st.button(msg_botao):
+                        if registrar_uso_diagnostico(email, email):
+                            try:
+                                col_email = buscar_coluna_por_palavra_chave(gatilhos, ["EMAIL", "E-MAIL"])
+                                cols_to_keep = [c for c in gatilhos.columns if c != col_email]
+                                hist_raw = gatilhos[cols_to_keep].tail(20).to_dict('records')
+                                perfil_raw = perfil.tail(1).to_dict('records') if not perfil.empty else {}
 
-                            with st.spinner("Passo 1/2: Analisando padrões comportamentais ocultos..."):
-                                analise_oculta = analisar_intencoes_ocultas(hist_raw, perfil_raw)
+                                with st.spinner("Passo 1/2: Analisando padrões comportamentais ocultos..."):
+                                    analise_oculta = analisar_intencoes_ocultas(hist_raw, perfil_raw)
 
-                            with st.spinner("Passo 2/2: Criando plano de ação personalizado..."):
-                                analise_final = gerar_diagnostico_final(analise_oculta)
-                                st.session_state.ultimo_diagnostico = analise_final
-                                st.rerun()
-                                
-                        except Exception as e: st.error(f"Erro: {e}")
-                    else: st.error("Erro ao registrar uso.")
+                                with st.spinner("Passo 2/2: Criando plano de ação personalizado..."):
+                                    analise_final = gerar_diagnostico_final(analise_oculta)
+                                    st.session_state.ultimo_diagnostico = analise_final
+                                    st.rerun()
+                                    
+                            except Exception as e: st.error(f"Erro: {e}")
+                        else: st.error("Erro ao registrar uso.")
 
-            if "ultimo_diagnostico" in st.session_state:
-                st.info(st.session_state.ultimo_diagnostico)
-                pdf_b = gerar_pdf_formatado(dados_aluno_pdf, top_gatilhos_pdf, st.session_state.ultimo_diagnostico)
-                st.download_button("📥 Baixar PDF", data=pdf_b, file_name="Diagnostico.pdf", mime="application/pdf")
+                if "ultimo_diagnostico" in st.session_state:
+                    st.info(st.session_state.ultimo_diagnostico)
+                    pdf_b = gerar_pdf_formatado(dados_aluno_pdf, top_gatilhos_pdf, st.session_state.ultimo_diagnostico)
+                    st.download_button("📥 Baixar PDF", data=pdf_b, file_name="Diagnostico.pdf", mime="application/pdf")
 
     st.markdown("<br><br><hr>", unsafe_allow_html=True)
     with st.expander("🔐 Acesso Restrito (Equipe)"):
