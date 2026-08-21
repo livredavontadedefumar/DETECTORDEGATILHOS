@@ -158,7 +158,7 @@ def registrar_uso_sos(email_aluno, mensagem):
 
 def gerar_resposta_sos(mensagem_usuario, perfil_resumo, gatilhos_resumo):
     genai.configure(api_key=st.secrets["gemini"]["api_key"])
-    model_sos = genai.GenerativeModel('gemini-2.0-flash')
+    model_sos = genai.GenerativeModel('gemini-3.6-flash')
     
     prompt_sos = f"""
     Atue como a "Madrinha", a mentora IA sábia e acolhedora do método Livre da Vontade.
@@ -258,7 +258,7 @@ def categorizar_geral_hibrida(texto):
 
 def analisar_intencoes_ocultas(dados_brutos, dados_perfil):
     genai.configure(api_key=st.secrets["gemini"]["api_key"])
-    model_analista = genai.GenerativeModel('gemini-2.0-flash')
+    model_analista = genai.GenerativeModel('gemini-3.6-flash')
     
     try:
         dados_str = str(dados_brutos)
@@ -287,7 +287,7 @@ def analisar_intencoes_ocultas(dados_brutos, dados_perfil):
 
 def gerar_diagnostico_final(analise_detetive):
     genai.configure(api_key=st.secrets["gemini"]["api_key"])
-    model_mentor = genai.GenerativeModel('gemini-2.0-flash')
+    model_mentor = genai.GenerativeModel('gemini-3.6-flash')
     
     prompt_mentor = f"""
     Atue como o MENTOR SÊNIOR do Método "Livre da Vontade". O seu tom é acolhedor, direto, claro e encorajador.
@@ -449,7 +449,7 @@ if st.session_state.admin_logado:
                 if st.button("🌍 GERAR DOSSIÊ ESTRATÉGICO"):
                     try:
                         genai.configure(api_key=st.secrets["gemini"]["api_key"])
-                        model = genai.GenerativeModel('gemini-2.0-flash')
+                        model = genai.GenerativeModel('gemini-3.6-flash')
                         col_antes = buscar_coluna_por_palavra_chave(df_gatilhos_total, ["ANTES"]) or df_gatilhos_total.columns[3]
                         col_emo = buscar_coluna_por_palavra_chave(df_gatilhos_total, ["EMOÇÃO"]) or df_gatilhos_total.columns[6]
                         
