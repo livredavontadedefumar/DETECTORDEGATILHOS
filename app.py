@@ -158,7 +158,7 @@ def registrar_uso_sos(email_aluno, mensagem):
 
 def gerar_resposta_sos(mensagem_usuario, perfil_resumo, gatilhos_resumo):
     genai.configure(api_key=st.secrets["gemini"]["api_key"])
-    model_sos = genai.GenerativeModel('gemini-3.7-flash')
+    model_sos = genai.GenerativeModel('gemini-3.6-flash')
     
     prompt_sos = f"""
     Atue como a "Madrinha", a mentora IA sábia e acolhedora do método Livre da Vontade.
