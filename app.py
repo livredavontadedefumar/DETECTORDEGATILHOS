@@ -579,6 +579,7 @@ else:
         st.markdown("# 🧚‍♀️ Madrinha-IA")
         st.markdown("### MAPA COMPORTAMENTAL")
     st.markdown("---")
+    st.caption("O Detector de Gatilhos é uma ferramenta de autoconhecimento e educação comportamental. As análises são baseadas nas informações fornecidas pelo usuário e não constituem diagnóstico, tratamento médico ou psicológico.")
 
     if "user_email" not in st.session_state:
         email_input = st.text_input("Digite seu e-mail cadastrado:").strip().lower()
