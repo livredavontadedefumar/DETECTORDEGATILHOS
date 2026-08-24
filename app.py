@@ -114,7 +114,7 @@ def verificar_limite_madrinha(email_madrinha, email_aluno, df_log):
         return False
     return True
 
-# --- FUNÇÕES DO AJUDA MADRINHA ---
+# --- FUNÇÕES DO RECURSO DE AJUDA ---
 def verificar_limites_sos(email_aluno, df_sos):
     if df_sos.empty:
         return True, "", 0, 0
@@ -133,9 +133,9 @@ def verificar_limites_sos(email_aluno, df_sos):
     qtd_mes = len(usos_mes)
     
     if qtd_hoje >= 3:
-        return False, "⚠️ Limite diário atingido: Você já usou o SOS 3 vezes hoje. Continue aplicando as rotinas de defesa.", qtd_hoje, qtd_mes
+        return False, "⚠️ Limite diário atingido: Você já usou o AJUDA MADRINHA 3 vezes hoje. Continue aplicando as rotinas de defesa.", qtd_hoje, qtd_mes
     if qtd_mes >= 15:
-        return False, "⚠️ Limite mensal atingido: Você já usou o SOS 15 vezes neste mês. O limite renova no dia 1º.", qtd_hoje, qtd_mes
+        return False, "⚠️ Limite mensal atingido: Você já usou o AJUDA MADRINHA 15 vezes neste mês. O limite renova no dia 1º.", qtd_hoje, qtd_mes
         
     return True, "", qtd_hoje, qtd_mes
 
@@ -159,36 +159,32 @@ def registrar_uso_sos(email_aluno, mensagem):
 def gerar_resposta_sos(mensagem_usuario, perfil_resumo, gatilhos_resumo):
     genai.configure(api_key=st.secrets["gemini"]["api_key"])
     model_sos = genai.GenerativeModel('gemini-3.6-flash')
-
+    
     prompt_sos = f"""
-    Você é a Madrinha-IA, uma assistente de autoconhecimento comportamental do método Livre da Vontade de Fumar.
+    Atue como a "Madrinha", uma assistente de autoconhecimento comportamental, acolhedora e objetiva do método Livre da Vontade de Fumar.
+    A pessoa acabou de acionar a AJUDA MADRINHA porque está com vontade intensa de fumar ou passando por um momento de desconforto.
 
-    O usuário acionou a AJUDA MADRINHA porque está com uma vontade intensa de fumar ou relatou um momento difícil.
-    Seu papel é acolher, ajudar o usuário a observar o momento presente e oferecer UMA estratégia prática simples.
+    MENSAGEM DA PESSOA AGORA: "{mensagem_usuario}"
 
-    MENSAGEM DO USUÁRIO AGORA: "{mensagem_usuario}"
+    CONTEXTO DO MAPA COMPORTAMENTAL:
+    Perfil: {perfil_resumo}
+    Gatilhos Comuns: {gatilhos_resumo}
 
-    CONTEXTO DOS REGISTROS: {gatilhos_resumo}
-    PERFIL INFORMADO: {perfil_resumo}
-
-    REGRAS: 
-    1. Seja acolhedora, objetiva, humana e sem julgamentos.
-    2. Não faça diagnóstico médico, psicológico ou clínico.
-    3. Não determine causas como fatos. Use "pode estar relacionado", "seu relato mostra" ou "observe se".
-    4. Não prescreva medicamentos nem faça recomendações de tratamento.
-    5. Não prometa que a vontade vai desaparecer ou que o usuário irá parar de fumar.
-    6. Ofereça UMA estratégia prática e simples, adequada ao relato (por exemplo: pausa consciente, respiração, água, mudar de ambiente, observar o gatilho).
-    7. No máximo 2 parágrafos curtos.
-    8. Se o usuário relatar uma questão clínica que ultrapasse o escopo da ferramenta, recomende procurar um profissional de saúde habilitado.
+    SUA MISSÃO IMEDIATA:
+    1. Acolha a pessoa com empatia, sem julgamento e sem linguagem alarmista.
+    2. Não diagnostique, não determine causas clínicas e não trate sua interpretação como verdade. Ajude a pessoa a observar o momento antes de agir.
+    3. Entregue UMA estratégia prática, simples e segura (por exemplo: uma pausa, respiração, mudar de ambiente, beber água ou observar o gatilho) adequada ao que foi relatado.
+    4. Seja curta e direta: no máximo 2 parágrafos curtos.
+    5. Não prescreva medicamentos, não recomende alterar ou suspender medicamentos e não substitua orientação de profissional de saúde. Se a pessoa pedir diagnóstico ou orientação médica, oriente-a a procurar um profissional habilitado.
     """
     try:
         response = model_sos.generate_content(prompt_sos)
         return response.text
     except Exception as e:
-        return f"Erro ao gerar resposta da Ajuda Madrinha: {str(e)}"
+        return f"Erro ao gerar ajuda: {str(e)}"
 
 # --- GERAÇÃO DE PDF E FILTROS ---
-def gerar_pdf_formatado(dados_perfil, top_gatilhos, texto_diagnostico):
+def gerar_pdf_formatado(dados_perfil, top_gatilhos, texto_mapa):
     pdf = FPDF()
     pdf.add_page()
     try:
@@ -207,7 +203,7 @@ def gerar_pdf_formatado(dados_perfil, top_gatilhos, texto_diagnostico):
     if 'idade' in dados_perfil: pdf.cell(0, 7, txt=f"IDADE: {dados_perfil.get('idade', 'N/A')}", ln=True)
     pdf.ln(5)
     pdf.set_font("Arial", "B", 12)
-    pdf.cell(0, 10, txt="RESUMO DOS DADOS", ln=True, fill=True)
+    pdf.cell(0, 10, txt="RESUMO DOS REGISTROS", ln=True, fill=True)
     pdf.set_font("Arial", "B", 10)
     for i, (g, qtd) in enumerate(top_gatilhos.items()):
         pdf.cell(0, 7, txt=f"{i+1}o: {str(g).upper()} ({qtd}x)", ln=True)
@@ -217,12 +213,14 @@ def gerar_pdf_formatado(dados_perfil, top_gatilhos, texto_diagnostico):
     pdf.cell(0, 10, txt="MAPA DE GATILHOS", ln=True)
     pdf.set_font("Arial", "", 11)
     pdf.set_text_color(0, 0, 0)
-    texto_limpo = texto_diagnostico.encode('latin-1', 'replace').decode('latin-1')
+    texto_limpo = texto_mapa.encode('latin-1', 'replace').decode('latin-1')
     pdf.multi_cell(0, 7, txt=texto_limpo)
     pdf.ln(15)
     pdf.set_font("Arial", "I", 8)
     pdf.set_text_color(150, 150, 150)
-    pdf.cell(0, 10, txt="Metodologia Clayton Chalegre", ln=True, align="C")
+    pdf.cell(0, 10, txt="Método Livre da Vontade de Fumar", ln=True, align="C")
+    pdf.set_font("Arial", "I", 7)
+    pdf.multi_cell(0, 5, txt="Ferramenta de autoconhecimento e educação comportamental. Não constitui diagnóstico, tratamento médico ou psicológico.", align="C")
     return pdf.output(dest="S").encode("latin-1")
 
 def filtrar_aluno(df, email_aluno):
@@ -264,89 +262,61 @@ def categorizar_geral_hibrida(texto):
 def analisar_intencoes_ocultas(dados_brutos, dados_perfil):
     genai.configure(api_key=st.secrets["gemini"]["api_key"])
     model_analista = genai.GenerativeModel('gemini-3.6-flash')
+    
     try:
         dados_str = str(dados_brutos)
     except:
         dados_str = "Dados não formatáveis."
 
     prompt_detetive = f"""
-    Atue como um analista de padrões comportamentais, objetivo, cuidadoso e baseado exclusivamente nos registros fornecidos.
+    Atue como um Analista de Padrões Comportamentais, objetivo, cuidadoso e direto. Você não realiza diagnóstico psicológico, médico ou clínico.
 
-    PERFIL INFORMADO PELO USUÁRIO: {dados_perfil}
+    PERFIL DO USUÁRIO: {dados_perfil}
     REGISTROS DO USUÁRIO: {dados_str}
 
-    SUA MISSÃO: organizar os dados em padrões observáveis que possam ajudar o usuário no autoconhecimento. Observe especialmente:
-    1. Situações que aparecem antes do ato de fumar.
-    2. Locais e contextos recorrentes.
-    3. Emoções e experiências relatadas.
-    4. Hábitos, atividades e objetos associados.
-    5. Momentos de transição e possíveis associações com o Piloto Automático.
-    6. Intensidade relatada, somente quando houver dados suficientes.
+    SUA MISSÃO: Mapear padrões a partir exclusivamente das informações fornecidas. Não invente informações e não trate inferências como fatos.
+    1. GATILHOS: Identifique situações, locais e sequências que aparecem associadas à vontade de fumar.
+    2. AMBIENTE: Identifique contextos e necessidades relatadas que aparecem associados ao comportamento, como pausa, rotina, estresse ou interação social.
+    3. PADRÃO ASSOCIADO AO COMPORTAMENTO: Identifique o que a pessoa relata buscar ou obter naquele momento, como alívio, pausa, recompensa ou distração. Apresente como relato ou possibilidade, nunca como causa certa.
+    4. HÁBITOS ASSOCIADOS: Identifique o que as mãos, atenção e rotina estão fazendo durante os episódios, usando apenas comportamentos observáveis.
+    5. INTENSIDADE RELATADA: Observe padrões na intensidade da vontade de fumar quando esses dados estiverem disponíveis.
 
-    REGRAS OBRIGATÓRIAS:
-    - Não faça diagnóstico médico, psicológico ou clínico.
-    - Não determine a causa real do comportamento.
-    - Não atribua transtornos, doenças ou condições ao usuário.
-    - Não invente padrões ausentes dos registros.
-    - Diferencie claramente RELATO, PADRÃO OBSERVADO e POSSIBILIDADE.
-    - Quando criar um nome para um padrão, trate-o como um rótulo descritivo criado para facilitar a observação, nunca como uma classificação da pessoa.
-    - Use linguagem como "nos seus registros", "aparece associado", "pode estar relacionado" e "uma possibilidade para observar".
-    - Se os dados não sustentarem uma conclusão, diga explicitamente que não há informações suficientes.
-
-    Forneça uma análise técnica em tópicos curtos, sem jargões clínicos e sem afirmar uma "raiz do problema".
+    Diferencie sempre: RELATO DO USUÁRIO, PADRÃO OBSERVADO e POSSIBILIDADE. Se não houver informação suficiente, informe que não foi possível identificar um padrão naquele aspecto.
+    Forneça uma síntese técnica curta, em tópicos, focada nos padrões observados.
     """
     try:
         response = model_analista.generate_content(prompt_detetive)
         return response.text
     except Exception as e:
-        return f"Erro na análise dos padrões: {str(e)}"
+        return f"Erro na análise de padrões: {str(e)}"
 
 def gerar_mapa_gatilhos(analise_padroes):
     genai.configure(api_key=st.secrets["gemini"]["api_key"])
-    model_mentor = genai.GenerativeModel('gemini-3.6-flash')
+    model_orientador = genai.GenerativeModel('gemini-3.6-flash')
+    
+    prompt_orientador = f"""
+    Atue como a Madrinha-IA, assistente de autoconhecimento comportamental do método "Livre da Vontade de Fumar". O tom é acolhedor, direto, claro e encorajador.
 
-    prompt_mentor = f"""
-    Você é a Madrinha-IA, assistente de autoconhecimento comportamental do método Livre da Vontade de Fumar.
-    Seu tom é acolhedor, objetivo, claro, respeitoso e encorajador.
-
-    >>> ANÁLISE DOS PADRÕES (INPUT):
+    >>> ANÁLISE DE PADRÕES (INPUT):
     {analise_padroes}
     <<<
 
-    SUA MISSÃO: transformar os padrões observados em um MAPA DE GATILHOS claro, útil e prático.
-
-    ESTRUTURA PREFERENCIAL:
-    1. Uma breve apresentação acolhedora.
-    2. 🗺️ O Seu Mapa Comportamental.
-       Para cada padrão relevante, use:
-       - **Seu Relato:** o que aparece nos registros.
-       - **Padrão Observado:** o que se repete ou aparece associado.
-       - **Possibilidade:** uma hipótese cuidadosa para facilitar a observação.
-    3. 💡 Exercício de Autoconhecimento.
-    4. 🎯 Estratégia Prática: uma experiência simples e educativa.
-    5. 🚀 Próximo Passo: uma sugestão de registro ou observação.
+    SUA MISSÃO: Criar o "Mapa Comportamental e Síntese dos Padrões" para o usuário. Traduza os padrões observados em estratégias práticas e exercícios de autoconhecimento, de forma amigável.
 
     REGRAS DE OURO:
-    1. Você NÃO realiza diagnóstico médico, psicológico ou clínico.
-    2. Você NÃO determina causas psicológicas ou fisiológicas como fatos.
-    3. Baseie-se somente nas informações fornecidas pelo usuário e na análise recebida.
-    4. Use "nos seus registros", "aparece associado", "pode estar relacionado" e "pode estar funcionando" quando apropriado.
-    5. Não use "seu problema é", "a causa é", "você apresenta", "seu corpo encontrou" ou equivalentes que transformem uma inferência em certeza.
-    6. Se houver poucos dados para determinado aspecto, diga claramente que não há informações suficientes.
-    7. Quando criar um nome para um padrão, introduza-o assim: "Chamaremos este padrão de [nome] para facilitar sua observação." O nome é apenas um rótulo descritivo.
-    8. Preserve o conceito de **Piloto Automático** como conceito da metodologia, mas não o trate como diagnóstico.
-    9. Não prescreva medicamentos, dosagens ou tratamentos.
-    10. Não prometa que o usuário irá parar de fumar ou que uma estratégia eliminará a vontade.
-    11. Não mande parar de fumar imediatamente; o objetivo desta etapa é ampliar consciência, observação e estratégias práticas.
-    12. Evite linguagem alarmista ou julgadora.
-    13. Se mencionar ansiedade, estresse ou outra emoção, trate-a como relato/experiência do usuário, sem diagnosticar.
-    14. Estratégias práticas devem ser apresentadas como experimentos de observação e mudança de rotina, não como tratamento.
-    15. Não use nomes de cientistas nem jargões técnicos desnecessários.
-    16. Não chame o cigarro de inimigo, monstro ou maldito.
-    17. Incentive o preenchimento contínuo do Detector de Gatilhos para ampliar o autoconhecimento.
+    1. Não use linguagem de diagnóstico, tratamento ou avaliação clínica. Não atribua doenças, transtornos ou causas psicológicas como fatos.
+    2. Não prometa que o usuário irá parar de fumar, eliminar a vontade ou superar o hábito por utilizar o Detector.
+    3. Não use linguagem alarmista. Prefira "relação com o cigarro", "padrão de consumo", "Gatilho Automático", "Sinal de Alerta", "Busca por Alívio" e "Padrão Associado ao Comportamento".
+    4. Incentive o usuário a continuar preenchendo o Detector para ampliar o próprio autoconhecimento.
+    5. Se envolver café ou álcool, sugira alternativas de forma gentil, sem radicalismos.
+    6. Crie 1 Estratégia Prática baseada no principal padrão observado. Use exemplos simples como fazer uma pausa, respirar, mudar de ambiente, beber água ou observar o gatilho. Não apresente a estratégia como tratamento.
+    7. Diferencie claramente RELATO, PADRÃO OBSERVADO e POSSIBILIDADE. Use expressões como "seu relato mostra", "aparece associado" e "pode estar relacionado" quando apropriado.
+    8. Se não houver informação suficiente para uma conclusão sobre determinado aspecto, diga isso claramente. Nunca invente informações.
+    9. Não prescreva medicamentos, não recomende alterar ou suspender medicamentos e não ofereça orientação médica.
+    10. Se o usuário pedir diagnóstico, avaliação clínica, tratamento ou orientação médica, explique que o Detector não realiza essas funções e recomende procurar um profissional de saúde habilitado.
     """
     try:
-        response = model_mentor.generate_content(prompt_mentor)
+        response = model_orientador.generate_content(prompt_orientador)
         return response.text
     except Exception as e:
         return f"Erro na geração do mapa: {str(e)}"
@@ -370,7 +340,7 @@ def exibir_dashboard_visual(df_aluno):
             contagem_dias.columns = ['Dia', 'Qtd']
             ordem_dias = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo']
             col_kpi, col_chart = st.columns([1, 3])
-            col_kpi.metric("TOTAL DE CIGARROS", len(df_temp))
+            col_kpi.metric("TOTAL DE REGISTROS", len(df_temp))
             fig1 = px.bar(contagem_dias, x='Dia', y='Qtd', category_orders={'Dia': ordem_dias}, color='Qtd', color_continuous_scale=['#90EE90', '#006400'])
             fig1.update_layout(margin=dict(l=0, r=0, t=50, b=0))
             col_chart.plotly_chart(fig1, use_container_width=True)
@@ -378,7 +348,7 @@ def exibir_dashboard_visual(df_aluno):
 
         col_antes = buscar_coluna_por_palavra_chave(df_aluno, ["ANTES", "ACONTECEU ANTES"])
         if col_antes:
-            st.markdown("##### 2. Situações Associadas (O que aconteceu antes)")
+            st.markdown("##### 2. Gatilhos de Ação (O que aconteceu antes)")
             df_temp = df_aluno.copy()
             df_temp['Cat'] = df_temp[col_antes].apply(categorizar_geral_hibrida)
             dados = df_temp['Cat'].value_counts().head(10).reset_index()
@@ -391,12 +361,12 @@ def exibir_dashboard_visual(df_aluno):
 
         col_maos = buscar_coluna_por_palavra_chave(df_aluno, ["MÃOS", "MAIS VOCÊ VAI FAZER", "MENTE", "ENQUANTO FUMO"])
         if col_maos:
-            st.markdown("##### 3. Hábitos e Atividades Associadas")
+            st.markdown("##### 3. Hábitos Associados")
             df_temp = df_aluno.copy()
             df_temp['Cat'] = df_temp[col_maos].apply(categorizar_geral_hibrida)
             dados = df_temp['Cat'].value_counts().head(10).reset_index()
-            dados.columns = ['Hábito', 'Qtd']
-            fig3 = px.bar(dados, x='Qtd', y='Hábito', orientation='h', text_auto=True, color_discrete_sequence=['#D2691E'])
+            dados.columns = ['Hábito Associado', 'Qtd']
+            fig3 = px.bar(dados, x='Qtd', y='Hábito Associado', orientation='h', text_auto=True, color_discrete_sequence=['#D2691E'])
             fig3.update_layout(**bar_layout)
             st.plotly_chart(fig3, use_container_width=True)
             st.markdown("---")
@@ -407,15 +377,15 @@ def exibir_dashboard_visual(df_aluno):
             df_temp = df_aluno.copy()
             df_temp['Cat'] = df_temp[col_motivo].apply(categorizar_geral_hibrida)
             dados = df_temp['Cat'].value_counts().head(10).reset_index()
-            dados.columns = ['Motivo', 'Qtd']
-            fig4 = px.bar(dados, x='Qtd', y='Motivo', orientation='h', text_auto=True, color='Qtd', color_continuous_scale=['#87CEEB', '#00008B'])
+            dados.columns = ['Padrão', 'Qtd']
+            fig4 = px.bar(dados, x='Qtd', y='Padrão', orientation='h', text_auto=True, color='Qtd', color_continuous_scale=['#87CEEB', '#00008B'])
             fig4.update_layout(**bar_layout)
             st.plotly_chart(fig4, use_container_width=True)
             st.markdown("---")
 
         col_local = buscar_coluna_por_palavra_chave(df_aluno, ["AONDE EXATAMENTE", "AONDE ESTOU", "ONDE E COM QUEM"])
         if col_local:
-            st.markdown("##### 5. Locais e Contextos Recorrentes")
+            st.markdown("##### 5. Locais Mais Frequentes")
             df_temp = df_aluno.copy()
             df_temp['Cat'] = df_temp[col_local].apply(categorizar_geral_hibrida)
             dados = df_temp['Cat'].value_counts().head(10).reset_index()
@@ -428,7 +398,7 @@ def exibir_dashboard_visual(df_aluno):
 
         col_emocao = buscar_coluna_por_palavra_chave(df_aluno, ["EMOÇÃO", "EMOCAO"])
         if col_emocao:
-            st.markdown("##### 6. Emoções Associadas aos Registros")
+            st.markdown("##### 6. Emoções Relatadas nos Registros")
             df_temp = df_aluno.copy()
             df_temp['Cat'] = df_temp[col_emocao].apply(lambda x: str(x).upper().strip() if pd.notnull(x) else "NÃO INFORMADO")
             dados = df_temp['Cat'].value_counts().head(10).reset_index()
@@ -440,7 +410,7 @@ def exibir_dashboard_visual(df_aluno):
 
         col_intensidade = buscar_coluna_por_palavra_chave(df_aluno, ["URGÊNCIA", "VONTADE", "ESCALA", "1 A 10"])
         if col_intensidade and not df_aluno[col_intensidade].isnull().all():
-            st.markdown("##### 7. Nível de Intensidade")
+            st.markdown("##### 7. Intensidade da Vontade de Fumar")
             df_temp = df_aluno.copy()
             df_temp['Intensidade'] = pd.to_numeric(df_temp[col_intensidade], errors='coerce').fillna(0)
             df_temp = df_temp[df_temp['Intensidade'] > 0] 
@@ -478,14 +448,14 @@ if st.session_state.admin_logado:
     with st.expander("📊 Visão Geral da Turma"):
         if not df_gatilhos_total.empty:
             c1, c2 = st.columns(2)
-            c1.metric("Total de Alunos", df_perfil_total.iloc[:,1].nunique() if not df_perfil_total.empty else 0)
+            c1.metric("Total de Usuários", df_perfil_total.iloc[:,1].nunique() if not df_perfil_total.empty else 0)
             c2.metric("Mapeamentos", len(df_gatilhos_total))
             exibir_dashboard_visual(df_gatilhos_total)
             
             if st.session_state.tipo_usuario == 'adm':
                 st.markdown("---")
-                st.markdown("#### 🧠 Inteligência de Avatar (Análise de Padrões da Turma)")
-                if st.button("🌍 GERAR DOSSIÊ ESTRATÉGICO"):
+                st.markdown("#### 🧠 Inteligência de Avatar (Análise de Turma)")
+                if st.button("🌍 GERAR SÍNTESE DA TURMA"):
                     try:
                         genai.configure(api_key=st.secrets["gemini"]["api_key"])
                         model = genai.GenerativeModel('gemini-3.6-flash')
@@ -502,23 +472,23 @@ if st.session_state.admin_logado:
                         """
                         with st.spinner("Gerando..."):
                             resp = model.generate_content(prompt_turma)
-                            st.session_state.diag_turma = resp.text
+                            st.session_state.sintese_turma = resp.text
                             st.success("Sucesso!")
-                            st.markdown(st.session_state.diag_turma)
+                            st.markdown(st.session_state.sintese_turma)
                     except Exception as e: st.error(f"Erro: {e}")
                 
-                if "diag_turma" in st.session_state:
-                    pdf_turma = gerar_pdf_formatado({'nome': 'DOSSIÊ TURMA'}, pd.Series(), st.session_state.diag_turma)
-                    st.download_button("📥 Baixar Dossiê (PDF)", data=pdf_turma, file_name="Dossie_Turma.pdf")
+                if "sintese_turma" in st.session_state:
+                    pdf_turma = gerar_pdf_formatado({'nome': 'SÍNTESE DA TURMA'}, pd.Series(), st.session_state.sintese_turma)
+                    st.download_button("📥 Baixar Síntese da Turma (PDF)", data=pdf_turma, file_name="Dossie_Turma.pdf")
 
     # --- ABA 2: AUDITORIA INDIVIDUAL (ADMIN E MADRINHAS) ---
     with st.expander("🔍 Acompanhamento Individual"):
         emails_lista = df_perfil_total.iloc[:, 1].unique().tolist() if not df_perfil_total.empty else []
-        aluno_selecionado = st.selectbox("Selecione o aluno:", [""] + emails_lista)
+        usuario_selecionado = st.selectbox("Selecione o usuário:", [""] + emails_lista)
         
-        if aluno_selecionado:
-            p_adm = filtrar_aluno(df_perfil_total, aluno_selecionado)
-            g_adm = filtrar_aluno(df_gatilhos_total, aluno_selecionado)
+        if usuario_selecionado:
+            p_adm = filtrar_aluno(df_perfil_total, usuario_selecionado)
+            g_adm = filtrar_aluno(df_gatilhos_total, usuario_selecionado)
             
             if not g_adm.empty:
                 exibir_dashboard_visual(g_adm)
@@ -527,26 +497,26 @@ if st.session_state.admin_logado:
             msg_bloqueio = ""
             
             if st.session_state.tipo_usuario == 'madrinha':
-                if not verificar_limite_madrinha(st.session_state.email_logado, aluno_selecionado, df_log_total):
+                if not verificar_limite_madrinha(st.session_state.email_logado, usuario_selecionado, df_log_total):
                     pode_gerar_diag = False
-                    msg_bloqueio = "⚠️ Limite atingido: Você já gerou 2 mapas para este aluno nos últimos 7 dias. Baixe o PDF anterior."
+                    msg_bloqueio = "⚠️ Limite atingido: Você já gerou 2 mapas para este usuário nos últimos 7 dias. Baixe o PDF anterior."
 
             if pode_gerar_diag:
                 if st.button("🚀 GERAR MAPA DE GATILHOS"):
-                    registrar_uso_mapa(st.session_state.email_logado, aluno_selecionado)
+                    registrar_uso_mapa(st.session_state.email_logado, usuario_selecionado)
                     try:
                         perfil_dict = p_adm.tail(1).to_dict('records')[0] if not p_adm.empty else {}
                         col_email = buscar_coluna_por_palavra_chave(g_adm, ["EMAIL", "E-MAIL"])
                         cols_to_keep = [c for c in g_adm.columns if c != col_email]
                         h_adm = g_adm[cols_to_keep].tail(20).to_dict('records') 
                         
-                        with st.spinner("Passo 1/2: Analisando os padrões registrados..."):
+                        with st.spinner("Passo 1/2: A Madrinha está a mapear os padrões observados..."):
                             analise_padroes = analisar_intencoes_ocultas(h_adm, perfil_dict)
                             
-                        with st.spinner("Passo 2/2: A Madrinha está organizando suas estratégias práticas..."):
+                        with st.spinner("Passo 2/2: A Madrinha está a transformar os padrões em estratégias práticas..."):
                             analise_final = gerar_mapa_gatilhos(analise_padroes)
                             st.session_state.diag_adm = analise_final
-                            st.success("Mapa de Gatilhos gerado com sucesso!")
+                            st.success("Mapa de Gatilhos Gerado com Sucesso!")
                             st.markdown(st.session_state.diag_adm)
                             
                     except Exception as e: st.error(f"Erro: {e}")
@@ -561,7 +531,7 @@ if st.session_state.admin_logado:
                 else:
                     top_g_pdf = pd.Series()
                 pdf_adm = gerar_pdf_formatado(d_adm, top_g_pdf, st.session_state.diag_adm)
-                st.download_button("📥 Baixar PDF", data=pdf_adm, file_name=f"Mapa_de_Gatilhos_{aluno_selecionado}.pdf")
+                st.download_button("📥 Baixar Mapa em PDF", data=pdf_adm, file_name=f"Mapa_Gatilhos_{usuario_selecionado}.pdf")
 
 else:
     logo_b64 = get_image_base64("logo.png")
@@ -578,6 +548,7 @@ else:
         st.markdown("# 🧚‍♀️ Madrinha-IA")
         st.markdown("### MAPA COMPORTAMENTAL")
     st.markdown("---")
+    st.caption("O Detector de Gatilhos é uma ferramenta de autoconhecimento e educação comportamental. As análises são baseadas nas informações fornecidas pelo usuário e não constituem diagnóstico, tratamento médico ou psicológico.")
 
     if "user_email" not in st.session_state:
         email_input = st.text_input("Digite seu e-mail cadastrado:").strip().lower()
@@ -627,7 +598,7 @@ else:
                 2. Toque em **"Instalar Aplicativo"**.
                 """)
 
-            # --- ABA 2: SOS MADRINHA-IA ---
+            # --- ABA 2: AJUDA MADRINHA MADRINHA-IA ---
             pode_usar_sos, msg_erro_sos, usos_hoje, usos_mes = verificar_limites_sos(email, df_sos_total)
             
             with st.expander("🚨 Ajuda Madrinha"):
@@ -640,15 +611,15 @@ else:
                     
                     col_sos1, col_sos2 = st.columns([1, 2])
                     with col_sos1:
-                        submit_sos = st.form_submit_button("💡 Pedir Ajuda", disabled=not pode_usar_sos, use_container_width=True)
+                        submit_sos = st.form_submit_button("🆘 Enviar Pedido", disabled=not pode_usar_sos, use_container_width=True)
                     with col_sos2:
-                        st.caption(f"**Seus limites da Ajuda Madrinha:** Você usou **{usos_hoje}/3** hoje e **{usos_mes}/15** neste mês.")
+                        st.caption(f"**Seus Limites do AJUDA MADRINHA:** Você usou **{usos_hoje}/3** hoje e **{usos_mes}/15** neste mês.")
 
                     if submit_sos:
                         if not pode_usar_sos:
                             st.error(msg_erro_sos)
                         elif not mensagem_sos.strip():
-                            st.warning("Por favor, digite o que está sentindo antes de enviar o SOS.")
+                            st.warning("Por favor, digite o que está sentindo antes de enviar o AJUDA MADRINHA.")
                         else:
                             with st.spinner("A Madrinha está preparando a sua resposta..."):
                                 if registrar_uso_sos(email, mensagem_sos):
@@ -658,13 +629,13 @@ else:
                                     if col_resumo_aluno_sos and not gatilhos.empty:
                                         gatilhos_resumo = gatilhos[col_resumo_aluno_sos].apply(categorizar_geral_hibrida).value_counts().head(3).to_dict()
                                     else:
-                                        gatilhos_resumo = "O aluno ainda está começando a mapear os gatilhos..."
+                                        gatilhos_resumo = "O usuário ainda está começando a registrar seus gatilhos..."
                                         
                                     resposta_sos = gerar_resposta_sos(mensagem_sos, perfil_resumo, gatilhos_resumo)
                                     st.session_state[f'sos_resposta_{email}'] = resposta_sos
                                     st.rerun() 
                                 else:
-                                    st.error("Erro de conexão com o banco de dados do SOS. Tente novamente.")
+                                    st.error("Erro de conexão com o banco de dados do AJUDA MADRINHA. Tente novamente.")
 
                 if f'sos_resposta_{email}' in st.session_state:
                     st.success(f"💌 **A Madrinha Diz:**\n\n{st.session_state[f'sos_resposta_{email}']}")
@@ -698,17 +669,17 @@ else:
                     st.info("Comece seu mapeamento para liberar o Painel.")
 
             # --- ABA 4: INTELIGÊNCIA COMPORTAMENTAL ---
-            with st.expander("🧠 Autoconhecimento Comportamental"):
+            with st.expander("🧠 Inteligência Comportamental"):
                 pode_gerar = False
                 msg_botao = "🚀 GERAR MEU MAPA DE GATILHOS"
                 
                 if dias_unicos < 7:
-                    st.warning(f"🔒 Faltam {7 - dias_unicos} dias de registro.")
+                    st.warning(f"🔒 Faltam {7 - dias_unicos} dias de registro para liberar o Mapa de Gatilhos.")
                     st.progress(dias_unicos / 7)
                 elif saldo_mapas <= 0:
                     dias_prox = 7 - (dias_unicos % 7)
                     if dias_prox == 0: dias_prox = 7
-                    st.warning(f"🔒 Ciclo encerrado. Registre mais {dias_prox} dias.")
+                    st.warning(f"🔒 Ciclo encerrado. Registre mais {dias_prox} dias para liberar novos mapas.")
                     st.progress((dias_unicos % 7) / 7)
                 else:
                     pode_gerar = True
@@ -724,10 +695,10 @@ else:
                                 hist_raw = gatilhos[cols_to_keep].tail(20).to_dict('records')
                                 perfil_raw = perfil.tail(1).to_dict('records') if not perfil.empty else {}
 
-                                with st.spinner("Passo 1/2: Analisando os padrões registrados..."):
+                                with st.spinner("Passo 1/2: Analisando padrões comportamentais relatados..."):
                                     analise_padroes = analisar_intencoes_ocultas(hist_raw, perfil_raw)
 
-                                with st.spinner("Passo 2/2: Organizando estratégias práticas..."):
+                                with st.spinner("Passo 2/2: Criando estratégias práticas personalizadas..."):
                                     analise_final = gerar_mapa_gatilhos(analise_padroes)
                                     st.session_state.ultimo_mapa = analise_final
                                     st.rerun()
@@ -738,7 +709,7 @@ else:
                 if "ultimo_mapa" in st.session_state:
                     st.info(st.session_state.ultimo_mapa)
                     pdf_b = gerar_pdf_formatado(dados_aluno_pdf, top_gatilhos_pdf, st.session_state.ultimo_mapa)
-                    st.download_button("📥 Baixar PDF", data=pdf_b, file_name="Mapa_de_Gatilhos.pdf", mime="application/pdf")
+                    st.download_button("📥 Baixar Mapa em PDF", data=pdf_b, file_name="Mapa_de_Gatilhos.pdf", mime="application/pdf")
 
     st.markdown("<br><br><hr>", unsafe_allow_html=True)
     with st.expander("🔐 Acesso Restrito (Equipe)"):
