@@ -233,6 +233,33 @@ def filtrar_aluno(df, email_aluno):
         return df[df[col_email] == email_aluno]
     return pd.DataFrame()
 
+def obter_ciclo_atual_completo(df):
+    """Seleciona o último ciclo completo de 7 dias de registro.
+    O ciclo só fica disponível para análise a partir do 8º dia de registro.
+    """
+    if df.empty:
+        return pd.DataFrame(), 0, []
+
+    df_trabalho = df.copy()
+    col_data = df_trabalho.columns[0]
+    df_trabalho["__Data_Ciclo"] = pd.to_datetime(
+        df_trabalho[col_data], dayfirst=True, errors="coerce"
+    ).dt.date
+    df_validos = df_trabalho.dropna(subset=["__Data_Ciclo"])
+    dias = sorted(df_validos["__Data_Ciclo"].unique())
+    dias_registrados = len(dias)
+
+    ciclos_liberados = max(0, (dias_registrados - 1) // 7)
+    if ciclos_liberados == 0:
+        return pd.DataFrame(), dias_registrados, []
+
+    inicio = (ciclos_liberados - 1) * 7
+    dias_ciclo = dias[inicio:inicio + 7]
+    ciclo = df_validos[df_validos["__Data_Ciclo"].isin(dias_ciclo)].copy()
+    ciclo = ciclo.drop(columns=["__Data_Ciclo"])
+    return ciclo, dias_registrados, dias_ciclo
+
+
 def buscar_coluna_por_palavra_chave(df, palavras_chave):
     for col in df.columns:
         col_upper = str(col).upper()
@@ -533,24 +560,42 @@ if st.session_state.admin_logado:
                     msg_bloqueio = "⚠️ Limite atingido: Você já gerou 2 mapas para este aluno nos últimos 7 dias. Baixe o PDF anterior."
 
             if pode_gerar_diag:
-                if st.button("🚀 GERAR MAPA DE GATILHOS"):
-                    registrar_uso_mapa(st.session_state.email_logado, aluno_selecionado)
-                    try:
-                        perfil_dict = p_adm.tail(1).to_dict('records')[0] if not p_adm.empty else {}
-                        col_email = buscar_coluna_por_palavra_chave(g_adm, ["EMAIL", "E-MAIL"])
-                        cols_to_keep = [c for c in g_adm.columns if c != col_email]
-                        h_adm = g_adm[cols_to_keep].tail(20).to_dict('records') 
-                        
-                        with st.spinner("Passo 1/2: Analisando os padrões registrados..."):
-                            analise_padroes = analisar_intencoes_ocultas(h_adm, perfil_dict)
-                            
-                        with st.spinner("Passo 2/2: A Madrinha está organizando suas estratégias práticas..."):
-                            analise_final = gerar_mapa_gatilhos(analise_padroes)
-                            st.session_state.diag_adm = analise_final
-                            st.success("Mapa de Gatilhos gerado com sucesso!")
-                            st.markdown(st.session_state.diag_adm)
-                            
-                    except Exception as e: st.error(f"Erro: {e}")
+                ciclo_admin = st.radio(
+                    "Período de análise:",
+                    ["Ciclo atual", "Todos os ciclos"],
+                    horizontal=True,
+                    key=f"periodo_mapa_{aluno_selecionado}"
+                )
+                ciclo_atual_df, dias_registrados_admin, dias_ciclo_admin = obter_ciclo_atual_completo(g_adm)
+
+                if ciclo_admin == "Ciclo atual" and ciclo_atual_df.empty:
+                    st.warning("🔒 O ciclo atual ainda não está completo. São necessários 7 dias de registro; o mapa fica disponível no 8º dia de registro.")
+                else:
+                    if st.button("🚀 GERAR MAPA DE GATILHOS"):
+                        registrar_uso_mapa(st.session_state.email_logado, aluno_selecionado)
+                        try:
+                            perfil_dict = p_adm.tail(1).to_dict('records')[0] if not p_adm.empty else {}
+                            col_email = buscar_coluna_por_palavra_chave(g_adm, ["EMAIL", "E-MAIL"])
+                            cols_to_keep = [c for c in g_adm.columns if c != col_email]
+
+                            if ciclo_admin == "Ciclo atual":
+                                dados_admin = ciclo_atual_df
+                            else:
+                                dados_admin = g_adm.copy()
+
+                            dados_admin = dados_admin[cols_to_keep]
+                            h_adm = dados_admin.to_dict('records')
+
+                            with st.spinner("Passo 1/2: Analisando os padrões registrados..."):
+                                analise_padroes = analisar_intencoes_ocultas(h_adm, perfil_dict)
+
+                            with st.spinner("Passo 2/2: A Madrinha está organizando suas estratégias práticas..."):
+                                analise_final = gerar_mapa_gatilhos(analise_padroes)
+                                st.session_state.diag_adm = analise_final
+                                st.success("Mapa de Gatilhos gerado com sucesso!")
+                                st.markdown(st.session_state.diag_adm)
+
+                        except Exception as e: st.error(f"Erro: {e}")
             else:
                 st.error(msg_bloqueio)
 
@@ -683,9 +728,11 @@ else:
                     usos = df_log_total[df_log_total.iloc[:, 1].astype(str).str.strip().str.lower() == email]
                     mapas_usados = len(usos)
             
-            ciclos_completos = dias_unicos // 7
+            # O 7º dia completa o ciclo; a geração fica disponível a partir do 8º dia.
+            ciclos_completos = max(0, (dias_unicos - 1) // 7)
             total_mapas_permitidos = ciclos_completos * 2
             saldo_mapas = total_mapas_permitidos - mapas_usados
+            ciclo_atual_usuario, _, _ = obter_ciclo_atual_completo(gatilhos)
 
             # --- ABA 3: PAINEL DE CONSCIÊNCIA ---
             with st.expander("📊 Painel de Consciência"):
@@ -723,7 +770,8 @@ else:
                             try:
                                 col_email = buscar_coluna_por_palavra_chave(gatilhos, ["EMAIL", "E-MAIL"])
                                 cols_to_keep = [c for c in gatilhos.columns if c != col_email]
-                                hist_raw = gatilhos[cols_to_keep].tail(20).to_dict('records')
+                                dados_ciclo = ciclo_atual_usuario[cols_to_keep]
+                                hist_raw = dados_ciclo.to_dict('records')
                                 perfil_raw = perfil.tail(1).to_dict('records') if not perfil.empty else {}
 
                                 with st.spinner("Passo 1/2: Analisando os padrões registrados..."):
